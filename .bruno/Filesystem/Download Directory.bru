@@ -1,0 +1,15 @@
+meta {
+  name: Download Directory
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{url}}/filesystem/download
+  body: none
+  auth: none
+}
+
+headers {
+  X-Filesystem-Path: F:\JetBrains\RustRover\filer\src-actix
+}
