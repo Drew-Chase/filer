@@ -12,13 +12,13 @@ export default defineConfig({
     clearScreen: false,
     server: {
         host: true,
-        port: 3000,
+        port: 9977,
         strictPort: true,
         hmr: {
             protocol: "ws",
             host: "localhost",
-            port: 3000,
-            clientPort: 3000,
+            port: 9977,
+            clientPort: 9977,
             overlay: true
         },
         watch: {
