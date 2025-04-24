@@ -25,20 +25,20 @@ pub async fn run() -> Result<()> {
 
     if DEBUG {
         ProxyViteOptions::new().log_level(Info).build()?;
-//        std::thread::spawn(|| {
-//            loop {
-//                info!("Starting Vite server in development mode...");
-//                let status = start_vite_server()
-//                    .expect("Failed to start vite server")
-//                    .wait()
-//                    .expect("Vite server crashed!");
-//                if !status.success() {
-//                    error!("The vite server has crashed!");
-//                } else {
-//                    break;
-//                }
-//            }
-//        });
+        std::thread::spawn(|| {
+            loop {
+                info!("Starting Vite server in development mode...");
+                let status = start_vite_server()
+                    .expect("Failed to start vite server")
+                    .wait()
+                    .expect("Vite server crashed!");
+                if !status.success() {
+                    error!("The vite server has crashed!");
+                } else {
+                    break;
+                }
+            }
+        });
         set_current_dir("target/wwwroot")?;
     }
 
@@ -61,9 +61,13 @@ pub async fn run() -> Result<()> {
             .service(
                 web::scope("/api")
                     .configure(auth_endpoint::configure)
-                    .configure(filesystem_endpoint::configure),
+                    .configure(filesystem_endpoint::configure)
+                    // Handle unmatched API endpoints
+                    .default_service(web::to(|| async {
+                        HttpResponse::NotFound().json(json!({"error": "API endpoint not found"}))
+                    })),
             )
-//            .configure_frontend_routes()
+            .configure_frontend_routes()
     })
     .workers(4)
     .bind(format!("0.0.0.0:{port}", port = PORT))?
