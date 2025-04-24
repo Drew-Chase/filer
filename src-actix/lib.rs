@@ -1,15 +1,19 @@
+use crate::auth::{auth_db, auth_endpoint};
 use crate::filesystem::filesystem_endpoint;
 use crate::helpers::asset_endpoint::AssetsAppConfig;
+use crate::helpers::constants::{DEBUG, PORT};
 use actix_web::{App, HttpResponse, HttpServer, middleware, web};
 use anyhow::Result;
+use log::Level::Info;
 use log::*;
 use serde_json::json;
+use std::env::set_current_dir;
+use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
-use crate::helpers::constants::{PORT, DEBUG};
 
+mod auth;
 mod filesystem;
 mod helpers;
-
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder()
@@ -17,6 +21,28 @@ pub async fn run() -> Result<()> {
         .format_timestamp(None)
         .init();
 
+    info!("Starting server...");
+
+    if DEBUG {
+        ProxyViteOptions::new().log_level(Info).build()?;
+//        std::thread::spawn(|| {
+//            loop {
+//                info!("Starting Vite server in development mode...");
+//                let status = start_vite_server()
+//                    .expect("Failed to start vite server")
+//                    .wait()
+//                    .expect("Vite server crashed!");
+//                if !status.success() {
+//                    error!("The vite server has crashed!");
+//                } else {
+//                    break;
+//                }
+//            }
+//        });
+        set_current_dir("target/wwwroot")?;
+    }
+
+    auth_db::initialize().await?;
     let server = HttpServer::new(move || {
         App::new()
             .wrap(middleware::Logger::default())
@@ -32,8 +58,12 @@ pub async fn run() -> Result<()> {
                         .into()
                     }),
             )
-            .service(web::scope("api").configure(filesystem_endpoint::configure))
-            .configure_frontend_routes()
+            .service(
+                web::scope("/api")
+                    .configure(auth_endpoint::configure)
+                    .configure(filesystem_endpoint::configure),
+            )
+//            .configure_frontend_routes()
     })
     .workers(4)
     .bind(format!("0.0.0.0:{port}", port = PORT))?
@@ -44,10 +74,6 @@ pub async fn run() -> Result<()> {
         if DEBUG { "development" } else { "production" },
         PORT
     );
-
-    if DEBUG {
-        start_vite_server().expect("Failed to start vite server");
-    }
 
     let stop_result = server.await;
     debug!("Server stopped");
