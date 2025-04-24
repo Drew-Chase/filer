@@ -1,4 +1,4 @@
-import {heroui} from "@heroui/react";
+import { heroui } from "@heroui/react";
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -21,7 +21,6 @@ export default {
                     },
                     secondary: "#2b2b2b",
                     background: "#e3e3ea",
-
                 }
             },
             dark: {
