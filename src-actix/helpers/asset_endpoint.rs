@@ -3,7 +3,7 @@ use actix_files::file_extension_to_mime;
 use actix_web::error::ErrorInternalServerError;
 use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, Responder};
 use include_dir::{include_dir, Dir};
-use vite_actix::ViteAppFactory;
+use vite_actix::vite_app_factory::ViteAppFactory;
 
 // Static directory including all files under `target/wwwroot`.
 //
@@ -15,7 +15,7 @@ static WWWROOT: Dir = include_dir!("target/wwwroot");
 // Handles the request for the index.html file.
 //
 // This function serves the `index.html` file from the embedded directory
-// if it exists, and returns an internal server error if the file is not found.
+// if it exists and returns an internal server error if the file is not found.
 //
 // # Arguments
 //
@@ -23,10 +23,10 @@ static WWWROOT: Dir = include_dir!("target/wwwroot");
 //
 // # Returns
 //
-// An `impl Responder` which can either be a successful HTTP response containing
+// An `impl Responder,` which can either be a successful HTTP response containing
 // the `index.html` file, or an internal server error.
 pub async fn index(_req: HttpRequest) -> anyhow::Result<impl Responder, Error> {
-	if let Some(file) = WWWROOT.get_file("index.html") {
+	if let Some(file) = WWWROOT.get_file("../../index.html") {
 		let body = file.contents();
 		return Ok(HttpResponse::Ok().content_type("text/html").body(body));
 	}
