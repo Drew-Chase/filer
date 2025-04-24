@@ -1,0 +1,34 @@
+[package]
+name = "filer"
+version = "0.0.0"
+edition = "2021"
+build = "src-actix/build.rs"
+
+[[bin]]
+name = "filer"
+path = "src-actix/main.rs"
+
+[lib]
+name = "filer_lib"
+path = "src-actix/lib.rs"
+crate-type = ["lib"]
+
+[dependencies]
+actix-web = { version = "4.9.0" }
+actix-files = { version = "0.6.6" }
+futures-util = "0.3.30"
+serde = { version = "1.0.208", features = ["derive"] }
+serde_json = { version = "1.0.125" }
+env_logger = "0.11.5"
+include_dir = "0.7.4"
+walkdir = "2.5.0"
+awc = "3.1.0"
+log = "0.4.22"
+anyhow = "1.0.95"
+thiserror = "2.0.11"
+vite-actix = "0.1.1"
+
+
+[build-dependencies]
+include_dir = "0.7.4"
+walkdir = "2.5.0"
