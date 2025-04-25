@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Serialize)]
 pub struct FilesystemEntry {
@@ -24,7 +24,7 @@ impl From<PathBuf> for FilesystemEntry {
             size: metadata.len(),
             is_dir: metadata.is_dir(),
         }
-    }   
+    }
 }
 
 impl From<PathBuf> for FilesystemData {
