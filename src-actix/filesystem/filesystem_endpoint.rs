@@ -1,3 +1,4 @@
+use crate::auth::auth_middleware::Authentication;
 use crate::filesystem::filesystem_data::{FilesystemData, FilesystemEntry};
 use crate::helpers::http_error::{Error, Result};
 use actix_web::web::Bytes;
@@ -165,7 +166,7 @@ async fn download(request: HttpRequest) -> Result<impl Responder> {
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/filesystem")
-            //            .wrap(Authentication::new())
+            .wrap(Authentication::new())
             .service(get_filesystem_entries)
             .service(download),
     );
