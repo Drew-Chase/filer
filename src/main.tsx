@@ -4,18 +4,22 @@ import ReactDOM from "react-dom/client";
 import $ from "jquery";
 
 import "./assets/scss/index.scss";
-import Home from "./assets/pages/Home.tsx";
-import About from "./assets/pages/About.tsx";
+import LoginPage from "./assets/pages/LoginPage.tsx";
 import Navigation from "./assets/components/Navigation.tsx";
 import {ThemeProvider} from "./assets/providers/ThemeProvider.tsx";
 import {HeroUIProvider} from "@heroui/react";
+import {AuthProvider} from "./assets/providers/AuthProvider.tsx";
+import FilesPage from "./assets/pages/FilesPage.tsx";
+import ErrorPage from "./assets/pages/ErrorPage.tsx";
 
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
         <BrowserRouter>
             <ThemeProvider>
-                <MainContentRenderer/>
+                <AuthProvider>
+                    <MainContentRenderer/>
+                </AuthProvider>
             </ThemeProvider>
         </BrowserRouter>
     </React.StrictMode>
@@ -29,8 +33,9 @@ export function MainContentRenderer()
             <Navigation/>
             <Routes>
                 <Route>
-                    <Route path="/" element={<Home/>}/>
-                    <Route path="/about" element={<About/>}/>
+                    <Route path="/" element={<LoginPage/>}/>
+                    <Route path={"/files/*"} element={<FilesPage/>}/>
+                    <Route path={"/*"} element={<ErrorPage/>}/>
                 </Route>
             </Routes>
         </HeroUIProvider>
