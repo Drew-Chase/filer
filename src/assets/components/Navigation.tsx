@@ -1,49 +1,51 @@
-import React from "react";
-import {Link, Navbar, NavbarBrand, NavbarContent, NavbarItem, NavbarMenu, NavbarMenuItem, NavbarMenuToggle} from "@heroui/react";
+import {Avatar, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Image, Input, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@heroui/react";
 import {ThemeSwitchComponent} from "../providers/ThemeProvider.tsx";
+import {Icon} from "@iconify-icon/react";
+import {useAuth} from "../providers/AuthProvider.tsx";
+import logo from "../images/filer-logo.svg";
 
 export default function Navigation()
 {
+    const {logout, isLoggedIn, username} = useAuth();
 
-    const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-    const pages = {
-        "Home": "/",
-        "About": "/about"
-    };
-    const menuItems = Object.keys(pages).map((item, index) =>
-    {
-        const url = Object.values(pages)[index];
-        const isCurrentPage = window.location.pathname === url;
-        return (
-            <NavbarMenuItem key={`${item}-${index}`}>
-                <Link href={url} color={isCurrentPage ? "primary" : "foreground"} aria-current="page" size="lg" className="w-full">
-                    {item}
-                </Link>
-            </NavbarMenuItem>
-        );
-    });
-
+    if (!isLoggedIn)
+        return null;
 
     return (
-        <Navbar onMenuOpenChange={setIsMenuOpen}>
+        <Navbar maxWidth={"full"}>
             <NavbarContent>
-                <NavbarMenuToggle aria-label={isMenuOpen ? "Close menu" : "Open menu"} className="sm:hidden"/>
                 <NavbarBrand>
-                    <p className="font-bold text-inherit">filer</p>
+                    <p className="font-bold text-inherit flex flex-row items-center gap-2 text-2xl"><Image src={logo} width={32}/></p>
                 </NavbarBrand>
             </NavbarContent>
 
-            <NavbarContent className="hidden sm:flex gap-4" justify="center">
-                {menuItems}
-            </NavbarContent>
-            <NavbarContent justify="end">
-                <NavbarItem>
-                    <ThemeSwitchComponent/>
-                </NavbarItem>
+            <NavbarContent justify={"center"} className={"w-1/2"}>
+                <Input
+                    label={"Search"}
+                    placeholder={"Search for files or folders..."}
+                    size={"sm"}
+                    className={"w-full"}
+                    classNames={{
+                        inputWrapper: "bg-white/20 data-[hover]:bg-white/15 group-data-[focus]:bg-white/10 group-data-[focus]:border-primary border-1 border-transparent"
+                    }}
+                />
             </NavbarContent>
 
-            <NavbarMenu>
-                {menuItems}
-            </NavbarMenu>
+            <NavbarContent justify="end">
+                <NavbarItem><ThemeSwitchComponent/></NavbarItem>
+                <NavbarItem>
+                    <Dropdown classNames={{
+                        content: "bg-white/10 backdrop-blur-sm"
+                    }}>
+                        <DropdownTrigger><Avatar name={username.toUpperCase()[0]} className={"cursor-pointer"}/></DropdownTrigger>
+                        <DropdownMenu>
+                            <DropdownItem key={"profile"} startContent={<Icon icon={"mage:user-fill"}/>}>Profile</DropdownItem>
+                            <DropdownItem key={"settings"} startContent={<Icon icon={"mage:settings-fill"}/>}>Settings</DropdownItem>
+                            <DropdownItem key={"help"} startContent={<Icon icon={"mage:github"}/>} as={Link} href={"https://github.com/drew-chase/filer/issues"} target={"_blank"}>Feedback / Help</DropdownItem>
+                            <DropdownItem key={"logout"} startContent={<Icon icon={"mage:unlocked-fill"}/>} onPress={logout}>Logout</DropdownItem>
+                        </DropdownMenu>
+                    </Dropdown>
+                </NavbarItem>
+            </NavbarContent>
         </Navbar>);
 }
