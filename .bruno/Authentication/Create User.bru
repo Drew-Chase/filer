@@ -1,0 +1,32 @@
+meta {
+  name: Create User
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{url}}/auth/users
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "filer",
+    "password": "filer",
+    "permissions": [
+      "Read",
+      "Write",
+      "Delete",
+      "Create",
+      "Upload",
+      "Download"
+    ]
+  }
+}
+
+assert {
+  res.status: 201
+  res.body.status: "created"
+  res.body.username: "testuser"
+}

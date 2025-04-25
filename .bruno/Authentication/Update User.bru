@@ -1,0 +1,33 @@
+meta {
+  name: Update User
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{url}}/auth/users/:username
+  body: json
+  auth: none
+}
+
+params:path {
+  username: 
+}
+
+body:json {
+  {
+    "password": "newpassword456",
+    "permissions": [
+      "Read",
+      "Write",
+      "Create",
+      "Delete"
+    ]
+  }
+}
+
+assert {
+  res.status: 200
+  res.body.status: "updated"
+  res.body.username: "{{username}}"
+}

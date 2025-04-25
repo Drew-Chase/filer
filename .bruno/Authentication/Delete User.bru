@@ -1,0 +1,21 @@
+meta {
+  name: Delete User
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{url}}/auth/users/:username
+  body: none
+  auth: none
+}
+
+params:path {
+  username: 
+}
+
+assert {
+  res.status: 200
+  res.body.status: "deleted"
+  res.body.username: "{{username}}"
+}
