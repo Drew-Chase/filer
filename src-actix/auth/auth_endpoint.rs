@@ -1,7 +1,7 @@
 use crate::auth::auth_data::User;
 use crate::auth::permission_flags::PermissionFlags;
 use crate::helpers::http_error::Result;
-use actix_web::{delete, get, post, put, web, HttpResponse};
+use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse};
 use anyhow::Error;
 use enumflags2::BitFlags;
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,19 @@ struct CreateUserRequest {
     username: String,
     password: String,
     permissions: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct LoginRequest {
+    username: String,
+    password: String,
+    remember: Option<bool>,
+}
+
+#[derive(Serialize)]
+struct LoginResponse {
+    token: String,
+    username: String,
 }
 
 #[derive(Deserialize)]
@@ -157,6 +170,111 @@ async fn delete_user(path: web::Path<String>) -> Result<HttpResponse> {
     })))
 }
 
+#[post("/login")]
+async fn login(req: HttpRequest, login_data: web::Json<LoginRequest>) -> Result<HttpResponse> {
+    let username = &login_data.username;
+    let password = &login_data.password;
+    let remember = login_data.remember.unwrap_or(false);
+    
+    let is_authenticated = User::authenticate(username, password).await?;
+    
+    if !is_authenticated {
+        return Ok(HttpResponse::Unauthorized().json(json!({
+            "error": "Invalid username or password"
+        })));
+    }
+    
+    let user = User::get_by_username(username).await?;
+    if let Some(user) = user {
+        let connection_info = req.connection_info();
+        let ip = connection_info.peer_addr().unwrap_or("unknown");
+        let host = connection_info.host().to_string();
+        
+        let token = user.generate_session_token(ip, host)?;
+        
+        // Prepare response
+        let mut response = HttpResponse::Ok();
+        
+        // Set cookie expiration based on a remember flag
+        if remember {
+            // 30 days for "remember me"
+            response.cookie(
+                actix_web::cookie::Cookie::build("token", token.clone())
+                    .path("/")
+                    .max_age(actix_web::cookie::time::Duration::days(365))
+                    .http_only(true)
+                    .secure(true) // Only send over HTTPS
+                    .same_site(actix_web::cookie::SameSite::Strict)
+                    .finish()
+            );
+        } else {
+            // Session cookie (expires when the browser closes)
+            response.cookie(
+                actix_web::cookie::Cookie::build("token", token.clone())
+                    .path("/")
+                    .http_only(true)
+                    .secure(true)
+                    .same_site(actix_web::cookie::SameSite::Strict)
+                    .finish()
+            );
+        }
+
+        Ok(response.json(LoginResponse {
+            token,
+            username: user.username,
+        }))
+    } else {
+        Ok(HttpResponse::Unauthorized().json(json!({
+            "error": "User not found"
+        })))
+    }
+}
+
+#[get("/validate-token")]
+async fn validate_token(req: HttpRequest) -> Result<HttpResponse> {
+    // Try to get the token from cookies
+    if let Some(token_cookie) = req.cookie("token") {
+        let token = token_cookie.value().to_string();
+        let connection_info = req.connection_info();
+        let ip = connection_info.peer_addr().unwrap_or("unknown");
+        let host = connection_info.host().to_string();
+        
+        // Loop through all users to find one that validates with this token
+        // This is not the most efficient approach but works for demonstration
+        let users = User::list().await?;
+        for user in users {
+            if user.authenticate_with_session_token(ip, &host, &token)? {
+                return Ok(HttpResponse::Ok().json(json!({
+                    "username": user.username,
+                    "valid": true
+                })));
+            }
+        }
+    }
+    
+    // If we get here, either no token was found or it was invalid
+    Ok(HttpResponse::Unauthorized().json(json!({
+        "valid": false,
+        "error": "Invalid or expired token"
+    })))
+}
+
+#[post("/logout")]
+async fn logout() -> HttpResponse {
+    let mut response = HttpResponse::Ok();
+    
+    // Remove the token cookie by setting an expired cookie
+    response.cookie(
+        actix_web::cookie::Cookie::build("token", "")
+            .path("/")
+            .max_age(actix_web::cookie::time::Duration::seconds(-1))
+            .http_only(true)
+            .finish()
+    );
+    
+    response.json(json!({ "status": "logged_out" }))
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/auth")
@@ -164,6 +282,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(list_users)
             .service(get_user)
             .service(update_user)
-            .service(delete_user),
+            .service(delete_user)
+            .service(login)
+            .service(validate_token)
+            .service(logout),
     );
 }
