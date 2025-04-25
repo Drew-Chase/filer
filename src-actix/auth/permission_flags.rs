@@ -1,4 +1,4 @@
-use enumflags2::{BitFlags, bitflags};
+use enumflags2::bitflags;
 use serde::{Deserialize, Serialize};
 
 #[bitflags]
