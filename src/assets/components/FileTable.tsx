@@ -18,7 +18,7 @@ export default function FileTable()
             }}
             sortDescriptor={sortDescriptor}
             onSortChange={onSortChange}
-            selectionMode={"multiple"}
+            selectionMode={data.entries.length > 0 ? "multiple" : "none"}
         >
             <TableHeader>
                 <TableColumn key={"filename"} className="w-full" allowsSorting>Name</TableColumn>
@@ -116,7 +116,7 @@ export default function FileTable()
 
                 {data.entries.length === 0 && !loading && (
                     <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
+                        <TableCell colSpan={6} className="text-center py-8">
                             {data?.entries.length === 0 ? "This directory is empty" : "No matching files found"}
                         </TableCell>
                     </TableRow>
