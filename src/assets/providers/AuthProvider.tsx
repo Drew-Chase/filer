@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({children}: { children: ReactNode })
 {
     const navigate = useNavigate();
-    const [isLoggedIn, setIsLoggedIn] = useState(true);
+    const [isLoggedIn, setIsLoggedIn] = useState<boolean | undefined>(undefined);
     const [username, setUsername] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const {pathname} = useLocation();
@@ -129,15 +129,15 @@ export function AuthProvider({children}: { children: ReactNode })
 
     useEffect(() =>
     {
-        console.log("Test", isLoggedIn, pathname);
+        if (isLoggedIn === undefined) return;
         if (!isLoggedIn && pathname.startsWith("/files/"))
             navigate("/");
-        else if (isLoggedIn && !pathname.startsWith("/files/"))
-            navigate("/files");
+        else if (isLoggedIn && !pathname.startsWith("/files"))
+            navigate("/files/");
     }, [isLoggedIn, pathname]);
 
     return (
-        <AuthContext.Provider value={{login, logout, isLoggedIn, username, isLoading}}>
+        <AuthContext.Provider value={{login, logout, isLoggedIn: isLoggedIn ?? false, username, isLoading}}>
             {children}
         </AuthContext.Provider>
     );
