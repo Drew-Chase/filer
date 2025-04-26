@@ -11,14 +11,9 @@ export default function LoginPage()
     const [password, setPassword] = useState("");
     const [showPasswordField, setShowPasswordField] = useState(false);
     const [remember, setRemember] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string|null>(null);
-    const {login, isLoggedIn} = useAuth();
-    const navigate = useNavigate();
-    if (isLoggedIn)
-    {
-        navigate("/files/");
-        return null;
-    }
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const {login} = useAuth();
+    const navigateFunction = useNavigate();
     return (
         <div className={"flex flex-col w-1/2 max-w-96 min-w-32 gap-4 mx-auto h-screen items-center justify-center"}>
             <h1 className={"text-4xl font-bold flex flex-row gap-4 items-center"}><span><Image src={logo} width={48}/></span> Filer</h1>
@@ -29,16 +24,17 @@ export default function LoginPage()
                     {
                         e.preventDefault();
                         const error = await login(username, password, remember);
-                        if (!error) {
+                        if (!error)
+                        {
                             setErrorMessage(null);
-                            navigate("/files/");
-                        } else {
+                            navigateFunction("/files/");
+                        } else
+                        {
                             console.error("Login failed:", error);
                             setErrorMessage("Invalid username or password.");
                         }
                     }
                 }
-
             >
 
                 <Input
