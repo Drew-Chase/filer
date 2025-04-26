@@ -15,7 +15,7 @@ export default function Navigation()
         <Navbar maxWidth={"full"}>
             <NavbarContent>
                 <NavbarBrand>
-                    <p className="font-bold text-inherit flex flex-row items-center gap-2 text-2xl"><Image src={logo} width={32}/></p>
+                    <span className="font-bold text-inherit flex flex-row items-center gap-2 text-2xl"><Image src={logo} width={32}/></span>
                 </NavbarBrand>
             </NavbarContent>
 
@@ -35,7 +35,7 @@ export default function Navigation()
                 <NavbarItem><ThemeSwitchComponent/></NavbarItem>
                 <NavbarItem>
                     <Dropdown classNames={{
-                        content: "bg-white/10 backdrop-blur-sm"
+                        content: "bg-white/10 backdrop-brightness-[0.5] backdrop-contrast-[1.1] backdrop-blur-sm"
                     }}>
                         <DropdownTrigger><Avatar name={username.toUpperCase()[0]} className={"cursor-pointer"}/></DropdownTrigger>
                         <DropdownMenu>
