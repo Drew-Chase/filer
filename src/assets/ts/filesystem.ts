@@ -115,6 +115,50 @@ export class FileSystem
             throw error;
         }
     }
+        
+            async copyEntry(sourcePath: string, destinationPath: string): Promise<void> {
+        const response = await fetch("/api/filesystem/copy", {
+            method: "POST",
+            headers: {
+                "X-Filesystem-Path": sourcePath,
+                "X-NewFilesystem-Path": destinationPath
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to copy: ${response.statusText}`);
+        }
+            }
+        
+            async moveEntry(sourcePath: string, destinationPath: string): Promise<void> {
+        const response = await fetch("/api/filesystem/move", {
+            method: "POST",
+            headers: {
+                "X-Filesystem-Path": sourcePath,
+                "X-NewFilesystem-Path": destinationPath
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to move: ${response.statusText}`);
+        }
+            }
+        
+            async deleteEntry(path: string): Promise<void> {
+        const response = await fetch("/api/filesystem/delete", {
+            method: "DELETE",
+            headers: {
+                "X-Filesystem-Path": path
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to delete: ${response.statusText}`);
+        }
+            }
 
     /**
      * Format file size into human-readable format
