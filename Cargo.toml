@@ -37,6 +37,9 @@ futures = "0.3.31"
 async-stream = { version = "0.3.6" }
 zip = { version = "2.6.1" }
 sysinfo = { version = "0.34.2", features = ["disk"] }
+parallel-disk-usage = { version = "0.11.0", features = ["serde"] }
+tokio = { version = "1.44.2", features = ["rt-multi-thread", "signal"] }
+actix-web-lab = "0.23.0"
 
 [build-dependencies]
 include_dir = "0.7.4"
