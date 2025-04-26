@@ -1,9 +1,9 @@
 use crate::auth::auth_data::User;
-use actix_web::Error;
-use actix_web::dev::{Service, forward_ready};
+use actix_web::dev::{forward_ready, Service};
 use actix_web::dev::{ServiceRequest, ServiceResponse, Transform};
 use actix_web::error::ErrorUnauthorized;
-use futures::future::{LocalBoxFuture, Ready, ready};
+use actix_web::Error;
+use futures::future::{ready, LocalBoxFuture, Ready};
 use std::rc::Rc;
 
 pub struct Authentication;
@@ -75,6 +75,24 @@ where
                                 return Err(ErrorUnauthorized(
                                     "Missing or invalid authentication token",
                                 ));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some(token_cookie) = &req.cookie("token") {
+                let token = token_cookie.value().to_string();
+                let ip = connection_info.peer_addr().unwrap_or("unknown");
+                let host = connection_info.host().to_string();
+
+                if let Ok(users) = User::list().await {
+                    for user in users {
+                        if let Ok(is_valid) =
+                            user.authenticate_with_session_token(ip, &host, &token)
+                        {
+                            if is_valid {
+                                return service.call(req).await;
                             }
                         }
                     }
