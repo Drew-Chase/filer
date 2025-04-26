@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 #[derive(Serialize)]
@@ -59,8 +59,10 @@ impl TryFrom<PathBuf> for FilesystemData {
         for entry in readdir {
             let entry = entry?;
             let path = entry.path();
-            if let Ok(entry) = path.try_into() {
-                entries.push(entry);
+            if !is_special_file(&path) {
+                if let Ok(entry) = path.try_into() {
+                    entries.push(entry);
+                }
             }
         }
         Ok(FilesystemData {
@@ -68,4 +70,34 @@ impl TryFrom<PathBuf> for FilesystemData {
             entries,
         })
     }
+}
+
+pub fn is_special_file(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        if let Ok(metadata) = path.metadata() {
+            let file_type = metadata.file_type();
+            use std::os::unix::fs::FileTypeExt;
+            // Check for Unix special files
+            return file_type.is_char_device()
+                || file_type.is_block_device()
+                || file_type.is_fifo()
+                || file_type.is_socket()
+                || file_type.is_symlink();
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        // Check for Windows special files/directories
+        if let Some(file_name) = path.file_name() {
+            if let Some(name) = file_name.to_str() {
+                return name.eq_ignore_ascii_case("desktop.ini")
+                    || name.eq_ignore_ascii_case("thumbs.db")
+                    || name.starts_with("$")
+                    || name.starts_with("~$");
+            }
+        }
+    }
+    false
 }
