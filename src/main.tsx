@@ -7,10 +7,11 @@ import "./assets/scss/index.scss";
 import LoginPage from "./assets/pages/LoginPage.tsx";
 import Navigation from "./assets/components/Navigation.tsx";
 import {ThemeProvider} from "./assets/providers/ThemeProvider.tsx";
-import {HeroUIProvider} from "@heroui/react";
+import {HeroUIProvider, ToastProvider} from "@heroui/react";
 import {AuthProvider} from "./assets/providers/AuthProvider.tsx";
 import FilesPage from "./assets/pages/FilesPage.tsx";
 import ErrorPage from "./assets/pages/ErrorPage.tsx";
+import {FileSystemEntryProvider} from "./assets/providers/FileSystemEntryProvider.tsx";
 
 
 ReactDOM.createRoot($("#root")[0]!).render(
@@ -18,7 +19,9 @@ ReactDOM.createRoot($("#root")[0]!).render(
         <BrowserRouter>
             <ThemeProvider>
                 <AuthProvider>
-                    <MainContentRenderer/>
+                    <FileSystemEntryProvider>
+                        <MainContentRenderer/>
+                    </FileSystemEntryProvider>
                 </AuthProvider>
             </ThemeProvider>
         </BrowserRouter>
@@ -30,6 +33,13 @@ export function MainContentRenderer()
     const navigate = useNavigate();
     return (
         <HeroUIProvider navigate={navigate}>
+            <ToastProvider
+                placement={"bottom-right"}
+                toastProps={{
+                    shouldShowTimeoutProgress: true,
+                    timeout: 5000
+                }}
+            />
             <Navigation/>
             <Routes>
                 <Route>
