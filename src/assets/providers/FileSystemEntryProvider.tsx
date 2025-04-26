@@ -33,12 +33,12 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         if (!isLoggedIn) return;
         let path = pathname
             .replace("/files/", "")  // Remove the /files/ prefix
-            .replace(/^\//, "");     // Remove leading slash if present
+            .replace(/^\//, "");     // Remove the leading slash if present
         if (path === "")
             path = "/";
         setCurrentPath(path);
         navigate(path);
-    }, [pathname]);
+    }, [pathname, isLoggedIn]);
 
     const navigate = useCallback(async (path: string) =>
     {
@@ -55,7 +55,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             reactNavigate(`/files${path.startsWith("/") ? path : "/" + path}`);
             setLoading(false);
         });
-    }, [currentPath]);
+    }, [currentPath, isLoggedIn]);
 
     const refresh = useCallback(() =>
     {
