@@ -1,4 +1,4 @@
-import {Avatar, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Image, Input, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@heroui/react";
+import {Avatar, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Image, Input, Kbd, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@heroui/react";
 import {ThemeSwitchComponent} from "../providers/ThemeProvider.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useAuth} from "../providers/AuthProvider.tsx";
@@ -15,7 +15,7 @@ export default function Navigation()
         <Navbar maxWidth={"full"}>
             <NavbarContent>
                 <NavbarBrand>
-                    <span className="font-bold text-inherit flex flex-row items-center gap-2 text-2xl"><Image src={logo} width={32}/></span>
+                    <Link href={"/files/"} className="font-bold text-inherit flex flex-row items-center gap-2 text-2xl"><Image src={logo} width={32}/></Link>
                 </NavbarBrand>
             </NavbarContent>
 
@@ -28,6 +28,7 @@ export default function Navigation()
                     classNames={{
                         inputWrapper: "bg-white/20 data-[hover]:bg-white/15 group-data-[focus]:bg-white/10 group-data-[focus]:border-primary border-1 border-transparent"
                     }}
+                    endContent={<Kbd keys={["command"]}>K</Kbd>}
                 />
             </NavbarContent>
 
