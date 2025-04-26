@@ -6,7 +6,7 @@ export default function FileTableBreadcrumbs({paths}: { paths: string[] })
     const {navigate} = useFileSystemEntry();
     return (
         <Breadcrumbs variant={"bordered"}>
-            {paths.map((path, index) => (
+            {paths.slice(0, paths.length - 1).map((path, index) => (
                 <BreadcrumbItem
                     key={path}
                     onPress={() =>
