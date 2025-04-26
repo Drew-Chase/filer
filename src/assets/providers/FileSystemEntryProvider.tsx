@@ -14,6 +14,9 @@ interface FileSystemEntryContextType
     sortDescriptor: SortDescriptor;
     onSortChange: (sortDescriptor: SortDescriptor) => void;
     refresh: () => void;
+    copyEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
+    moveEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
+    deleteEntry: (path: string) => Promise<void>;
 }
 
 const FileSystemEntryContext = createContext<FileSystemEntryContextType | undefined>(undefined);
@@ -28,33 +31,53 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({column: "filename", direction: "ascending"} as SortDescriptor);
     const {isLoggedIn} = useAuth();
 
+// Modify the useEffect hook that watches pathname
     useEffect(() =>
     {
         if (!isLoggedIn) return;
+
         let path = pathname
-            .replace("/files/", "")  // Remove the /files/ prefix
-            .replace(/^\//, "");     // Remove the leading slash if present
+            .replace("/files/", "")
+            .replace(/^\//, "")
+            .replace(/\\/g, "/")
+            .replace(/\/\//g, "/");
+
+        if (!path.endsWith("/"))
+            path += "/";
         if (path === "")
             path = "/";
-        setCurrentPath(path);
-        navigate(path);
+
+        // Only fetch data if path actually changed
+        if (path !== currentPath)
+        {
+            setCurrentPath(path);
+            setLoading(true);
+            setData({parent: null, entries: []});
+
+            fs.getEntries(path)
+                .then(data =>
+                {
+                    setData(data);
+                })
+                .catch(e =>
+                {
+                    console.error("Error getting entries:", e);
+                    setData({parent: null, entries: []});
+                })
+                .finally(() =>
+                {
+                    setLoading(false);
+                });
+        }
     }, [pathname, isLoggedIn]);
 
-    const navigate = useCallback(async (path: string) =>
+// Modify the navigate function to only update the route
+    const navigate = useCallback((path: string) =>
     {
         if (!isLoggedIn) return;
         if (path === currentPath || path === "") return;
-        setLoading(true);
-        setData({parent: null, entries: []});
-        setCurrentPath(path);
-        fs.getEntries(path).then(data =>
-        {
-            setData(data);
-        }).finally(() =>
-        {
-            reactNavigate(`/files${path.startsWith("/") ? path : "/" + path}`);
-            setLoading(false);
-        });
+
+        reactNavigate(`/files${path.startsWith("/") ? path : "/" + path}`);
     }, [currentPath, isLoggedIn]);
 
     const refresh = useCallback(() =>
@@ -64,14 +87,20 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         console.log("Refreshing");
         setLoading(true);
         setData({parent: null, entries: []});
-        fs.getEntries(currentPath).then(data =>
+        fs.getEntries(currentPath)
+            .then(data =>
+            {
+                setData(data);
+            }).catch(e =>
         {
-            setData(data);
-        }).finally(() =>
-        {
-            reactNavigate(`/files${currentPath.startsWith("/") ? currentPath : "/" + currentPath}`);
-            setLoading(false);
-        });
+            console.error("Error getting entries:", e);
+            setData({parent: null, entries: []});
+        })
+            .finally(() =>
+            {
+                reactNavigate(`/files${currentPath.startsWith("/") ? currentPath : "/" + currentPath}`);
+                setLoading(false);
+            });
     }, [currentPath]);
 
     useEffect(() =>
@@ -122,8 +151,59 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
 
     }, []);
 
+    const copyEntry = useCallback(async (sourcePath: string, destinationPath: string) => {
+        if (!isLoggedIn) return;
+        
+        try {
+            await fs.copyEntry(sourcePath, destinationPath);
+            // Refresh the current directory to show the changes
+            refresh();
+        } catch (error) {
+            console.error("Error copying entry:", error);
+            throw error;
+        }
+    }, [isLoggedIn, refresh]);
+
+    const moveEntry = useCallback(async (sourcePath: string, destinationPath: string) => {
+        if (!isLoggedIn) return;
+        
+        try {
+            await fs.moveEntry(sourcePath, destinationPath);
+            // Refresh the current directory to show the changes
+            refresh();
+        } catch (error) {
+            console.error("Error moving entry:", error);
+            throw error;
+        }
+    }, [isLoggedIn, refresh]);
+
+    const deleteEntry = useCallback(async (path: string) => {
+        if (!isLoggedIn) return;
+        
+        try {
+            await fs.deleteEntry(path);
+            // Refresh the current directory to show the changes
+            refresh();
+        } catch (error) {
+            console.error("Error deleting entry:", error);
+            throw error;
+        }
+    }, [isLoggedIn, refresh]);
+
     return (
-        <FileSystemEntryContext.Provider value={{currentPath, navigate, data, loading, search, sortDescriptor, onSortChange: setSortDescriptor, refresh}}>
+        <FileSystemEntryContext.Provider value={{
+            currentPath, 
+            navigate, 
+            data, 
+            loading, 
+            search, 
+            sortDescriptor, 
+            onSortChange: setSortDescriptor, 
+            refresh,
+            copyEntry,
+            moveEntry,
+            deleteEntry
+        }}>
             {children}
         </FileSystemEntryContext.Provider>
     );
