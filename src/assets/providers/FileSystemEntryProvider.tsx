@@ -3,6 +3,7 @@ import fs, {FilesystemData, FilesystemEntry} from "../ts/filesystem.ts";
 import {useLocation, useNavigate} from "react-router-dom";
 import {SortDescriptor} from "@heroui/react";
 import {useAuth} from "./AuthProvider.tsx";
+import RenameModal from "../components/modals/RenameModal.tsx";
 
 interface FileSystemEntryContextType
 {
@@ -14,6 +15,10 @@ interface FileSystemEntryContextType
     sortDescriptor: SortDescriptor;
     onSortChange: (sortDescriptor: SortDescriptor) => void;
     refresh: () => void;
+    openRenameModal: (entry: FilesystemEntry) => void;
+    openCopyModal: (entry: FilesystemEntry) => void;
+    openMoveModal: (entry: FilesystemEntry) => void;
+    openDeleteModal: (entry: FilesystemEntry) => void;
     copyEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
     moveEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
     deleteEntry: (path: string) => Promise<void>;
@@ -30,6 +35,11 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     const [data, setData] = useState<FilesystemData>({parent: null, entries: []});
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({column: "filename", direction: "ascending"} as SortDescriptor);
     const {isLoggedIn} = useAuth();
+    const [currentEntryBeingRenamed, setCurrentEntryBeingRenamed] = useState<FilesystemEntry | null>(null);
+    const [currentEntryBeingMoved, setCurrentEntryBeingMoved] = useState<FilesystemEntry | null>(null);
+    const [currentEntryBeingCopied, setCurrentEntryBeingCopied] = useState<FilesystemEntry | null>(null);
+    const [currentEntryBeingDeleted, setCurrentEntryBeingDeleted] = useState<FilesystemEntry | null>(null);
+
 
 // Modify the useEffect hook that watches pathname
     useEffect(() =>
@@ -151,59 +161,94 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
 
     }, []);
 
-    const copyEntry = useCallback(async (sourcePath: string, destinationPath: string) => {
+    const copyEntry = useCallback(async (sourcePath: string, destinationPath: string) =>
+    {
         if (!isLoggedIn) return;
-        
-        try {
+
+        try
+        {
             await fs.copyEntry(sourcePath, destinationPath);
             // Refresh the current directory to show the changes
             refresh();
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Error copying entry:", error);
             throw error;
         }
     }, [isLoggedIn, refresh]);
 
-    const moveEntry = useCallback(async (sourcePath: string, destinationPath: string) => {
+    const moveEntry = useCallback(async (sourcePath: string, destinationPath: string) =>
+    {
         if (!isLoggedIn) return;
-        
-        try {
+
+        try
+        {
             await fs.moveEntry(sourcePath, destinationPath);
             // Refresh the current directory to show the changes
             refresh();
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Error moving entry:", error);
             throw error;
         }
     }, [isLoggedIn, refresh]);
 
-    const deleteEntry = useCallback(async (path: string) => {
+    const deleteEntry = useCallback(async (path: string) =>
+    {
         if (!isLoggedIn) return;
-        
-        try {
+
+        try
+        {
             await fs.deleteEntry(path);
             // Refresh the current directory to show the changes
             refresh();
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Error deleting entry:", error);
             throw error;
         }
     }, [isLoggedIn, refresh]);
 
+    const openRenameModal = useCallback((entry: FilesystemEntry) =>
+    {
+        setCurrentEntryBeingRenamed(entry);
+    }, []);
+
+    const openCopyModal = useCallback((entry: FilesystemEntry) =>
+    {
+        setCurrentEntryBeingCopied(entry);
+    }, []);
+
+    const openMoveModal = useCallback((entry: FilesystemEntry) =>
+    {
+        setCurrentEntryBeingMoved(entry);
+    }, []);
+
+    const openDeleteModal = useCallback((entry: FilesystemEntry) =>
+    {
+        setCurrentEntryBeingDeleted(entry);
+    }, []);
+
+
     return (
         <FileSystemEntryContext.Provider value={{
-            currentPath, 
-            navigate, 
-            data, 
-            loading, 
-            search, 
-            sortDescriptor, 
-            onSortChange: setSortDescriptor, 
+            currentPath,
+            navigate,
+            data,
+            loading,
+            search,
+            sortDescriptor,
+            onSortChange: setSortDescriptor,
             refresh,
+            openRenameModal,
+            openCopyModal,
+            openMoveModal,
+            openDeleteModal,
             copyEntry,
             moveEntry,
             deleteEntry
         }}>
+            <RenameModal entry={currentEntryBeingRenamed} onClose={() => setCurrentEntryBeingRenamed(null)}/>
             {children}
         </FileSystemEntryContext.Provider>
     );
