@@ -5,7 +5,17 @@ import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
 
 export default function FileTable()
 {
-    const {navigate, loading, data, sortDescriptor, onSortChange} = useFileSystemEntry();
+    const {
+        navigate,
+        loading,
+        data,
+        sortDescriptor,
+        onSortChange,
+        openRenameModal,
+        openCopyModal,
+        openMoveModal,
+        openDeleteModal
+    } = useFileSystemEntry();
 
     return (
         <Table
@@ -85,7 +95,9 @@ export default function FileTable()
                         <TableCell>{entry.is_dir ? "-" : entry.creation_date.toLocaleDateString()}</TableCell>
                         <TableCell>{entry.is_dir ? "-" : entry.last_modified.toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">
-                            <Dropdown>
+                            <Dropdown classNames={{
+                                content: "bg-white/10 backdrop-brightness-[0.5] backdrop-contrast-[1.1] backdrop-blur-sm"
+                            }}>
                                 <DropdownTrigger>
                                     <Button variant={"light"} size={"sm"}>
                                         <Icon icon={"mage:dots-horizontal"}/>
@@ -93,10 +105,10 @@ export default function FileTable()
                                 </DropdownTrigger>
                                 <DropdownMenu>
                                     <DropdownSection title={`${entry.filename} options`} showDivider>
-                                        <DropdownItem key={`download-${entry.filename}`} endContent={<Icon icon={"gg:rename"} width={18}/>}>Rename</DropdownItem>
-                                        <DropdownItem key={`download-${entry.filename}`} endContent={<Icon icon={"mage:copy-fill"}/>}>Copy</DropdownItem>
-                                        <DropdownItem key={`download-${entry.filename}`} endContent={<Icon icon={"mage:l-arrow-right-up"} width={18}/>}>Move</DropdownItem>
-                                        <DropdownItem key={`download-${entry.filename}`} endContent={<Icon icon={"mage:share-fill"} width={16}/>}>Share</DropdownItem>
+                                        <DropdownItem key={`rename-${entry.filename}`} endContent={<Icon icon={"gg:rename"} width={18}/>} onPress={() => openRenameModal(entry)}>Rename</DropdownItem>
+                                        <DropdownItem key={`copy-${entry.filename}`} endContent={<Icon icon={"mage:copy-fill"}/>} onPress={() => openCopyModal(entry)}>Copy</DropdownItem>
+                                        <DropdownItem key={`move-${entry.filename}`} endContent={<Icon icon={"mage:l-arrow-right-up"} width={18}/>} onPress={() => openMoveModal(entry)}>Move</DropdownItem>
+                                        <DropdownItem key={`share-${entry.filename}`} endContent={<Icon icon={"mage:share-fill"} width={16}/>}>Share</DropdownItem>
                                         <DropdownItem key={`download-${entry.filename}`} endContent={<Icon icon={"mage:file-download-fill"}/>}>Download</DropdownItem>
                                     </DropdownSection>
                                     <DropdownSection title={"danger zone"} className={"text-danger"}>
@@ -104,6 +116,7 @@ export default function FileTable()
                                             key={`delete-${entry.filename}`}
                                             endContent={<Icon icon={"mage:trash-fill"}/>}
                                             color={"danger"}
+                                            onPress={() => openDeleteModal(entry)}
                                         >
                                             Delete
                                         </DropdownItem>
