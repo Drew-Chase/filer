@@ -41,10 +41,10 @@ export function DirectoryActions()
         <>
             <ButtonGroup>
                 <Tooltip content={"Upload File"}><Button variant={"ghost"} size={"sm"} className={"text-xl"} onPress={handleUpload}><Icon icon={"mage:file-upload-fill"}/></Button></Tooltip>
-                <Tooltip content={"Archive and Download"}> <Button size={"sm"} variant={"ghost"} className={"text-xl"}> <Icon icon={"mage:archive-fill"}/> </Button> </Tooltip>
-                <Tooltip content={"Create New Directory"}> <Button size={"sm"} variant={"ghost"} className={"text-xl"}> <Icon icon={"mage:folder-plus-fill"}/> </Button> </Tooltip>
-                <Tooltip content={"Create New File"}> <Button size={"sm"} variant={"ghost"} className={"text-xl"}> <Icon icon={"mage:file-plus-fill"}/> </Button> </Tooltip>
-                <Tooltip content={"Refresh"}> <Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={refresh} isLoading={loading}>{!loading && <Icon icon={"mage:refresh"}/>}</Button></Tooltip>
+                <Tooltip content={"Archive and Download"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:archive-fill"}/></Button></Tooltip>
+                <Tooltip content={"Create New Directory"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:folder-plus-fill"}/></Button></Tooltip>
+                <Tooltip content={"Create New File"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:file-plus-fill"}/></Button></Tooltip>
+                <Tooltip content={"Refresh"}><Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={refresh} isLoading={loading}>{!loading && <Icon icon={"mage:refresh"}/>}</Button></Tooltip>
             </ButtonGroup>
             {fileUploadData && (
                 <Alert
