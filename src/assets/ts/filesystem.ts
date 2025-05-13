@@ -84,14 +84,30 @@ export class FileSystem
      * @param entry Filesystem entry to download
      * @returns Promise that resolves when download is initiated
      */
-    public async download(entry: FilesystemEntry): Promise<void>
+    public async download(entry: FilesystemEntry | FilesystemEntry[]): Promise<void>
     {
         try
         {
-            const response = await fetch(`${this.baseUrl}/download`, {
-                headers: {
+            const a = document.createElement("a");
+            let headers = {};
+            if (Array.isArray(entry))
+            {
+                headers = {
+                    "X-Multiple-Paths": JSON.stringify(entry.map(e => e.path))
+                };
+                a.download = `${Math.random().toString(36).substring(7)}.zip`;
+            } else
+            {
+                headers = {
                     "X-Filesystem-Path": entry.path
-                }
+                };
+                if (entry.is_dir)
+                    a.download = `${entry.filename}.zip`;
+                else
+                    a.download = entry.filename;
+            }
+            const response = await fetch(`${this.baseUrl}/download`, {
+                headers
             });
 
             if (!response.ok)
@@ -101,10 +117,8 @@ export class FileSystem
 
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
             a.style.display = "none";
             a.href = url;
-            a.download = entry.filename;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -115,8 +129,9 @@ export class FileSystem
             throw error;
         }
     }
-        
-            async copyEntry(sourcePath: string, destinationPath: string): Promise<void> {
+
+    async copyEntry(sourcePath: string, destinationPath: string): Promise<void>
+    {
         const response = await fetch("/api/filesystem/copy", {
             method: "POST",
             headers: {
@@ -124,14 +139,16 @@ export class FileSystem
                 "X-NewFilesystem-Path": destinationPath
             }
         });
-        
-        if (!response.ok) {
+
+        if (!response.ok)
+        {
             const errorData = await response.json();
             throw new Error(errorData.error || `Failed to copy: ${response.statusText}`);
         }
-            }
-        
-            async moveEntry(sourcePath: string, destinationPath: string): Promise<void> {
+    }
+
+    async moveEntry(sourcePath: string, destinationPath: string): Promise<void>
+    {
         const response = await fetch("/api/filesystem/move", {
             method: "POST",
             headers: {
@@ -139,26 +156,29 @@ export class FileSystem
                 "X-NewFilesystem-Path": destinationPath
             }
         });
-        
-        if (!response.ok) {
+
+        if (!response.ok)
+        {
             const errorData = await response.json();
             throw new Error(errorData.error || `Failed to move: ${response.statusText}`);
         }
-            }
-        
-            async deleteEntry(path: string): Promise<void> {
+    }
+
+    async deleteEntry(path: string): Promise<void>
+    {
         const response = await fetch("/api/filesystem/delete", {
             method: "DELETE",
             headers: {
                 "X-Filesystem-Path": path
             }
         });
-        
-        if (!response.ok) {
+
+        if (!response.ok)
+        {
             const errorData = await response.json();
             throw new Error(errorData.error || `Failed to delete: ${response.statusText}`);
         }
-            }
+    }
 
     /**
      * Format file size into human-readable format
