@@ -14,7 +14,10 @@ export default function FileTable()
         openRenameModal,
         openCopyModal,
         openMoveModal,
-        openDeleteModal
+        openDeleteModal,
+        downloadEntry,
+        selectedEntries,
+        setSelectedEntries
     } = useFileSystemEntry();
 
     return (
@@ -29,6 +32,26 @@ export default function FileTable()
             sortDescriptor={sortDescriptor}
             onSortChange={onSortChange}
             selectionMode={data.entries.length > 0 ? "multiple" : "none"}
+            selectedKeys={new Set(
+                Array.from(selectedEntries).map(path =>
+                {
+                    // Find the index of the entry with this path
+                    const index = data.entries.findIndex(entry => entry.path === path);
+                    return index >= 0 ? index.toString() : "";
+                }).filter(index => index !== "")
+            )}
+            onSelectionChange={(keys) =>
+            {
+                // Convert the keys to a Set of strings
+                const selectedKeys = new Set(Array.from(keys).map(key =>
+                {
+                    // Find the entry with this key (index)
+                    const index = parseInt(key.toString());
+                    return data.entries[index]?.path || "";
+                }).filter(path => path !== ""));
+
+                setSelectedEntries(selectedKeys);
+            }}
         >
             <TableHeader>
                 <TableColumn key={"filename"} className="w-full" allowsSorting>Name</TableColumn>
@@ -109,7 +132,7 @@ export default function FileTable()
                                         <DropdownItem key={`copy-${entry.filename}`} endContent={<Icon icon={"mage:copy-fill"}/>} onPress={() => openCopyModal(entry)}>Copy</DropdownItem>
                                         <DropdownItem key={`move-${entry.filename}`} endContent={<Icon icon={"mage:l-arrow-right-up"} width={18}/>} onPress={() => openMoveModal(entry)}>Move</DropdownItem>
                                         <DropdownItem key={`share-${entry.filename}`} endContent={<Icon icon={"mage:share-fill"} width={16}/>}>Share</DropdownItem>
-                                        <DropdownItem key={`download-${entry.filename}`} endContent={<Icon icon={"mage:file-download-fill"}/>}>Download</DropdownItem>
+                                        <DropdownItem key={`download-${entry.filename}`} endContent={<Icon icon={"mage:file-download-fill"}/>} onPress={() => downloadEntry(entry)}>Download</DropdownItem>
                                     </DropdownSection>
                                     <DropdownSection title={"danger zone"} className={"text-danger"}>
                                         <DropdownItem

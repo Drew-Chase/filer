@@ -1,4 +1,4 @@
-import {Alert, Button, ButtonGroup, CircularProgress, Tooltip} from "@heroui/react";
+import {Alert, Badge, Button, ButtonGroup, CircularProgress, Tooltip} from "@heroui/react";
 import fs from "../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useState} from "react";
@@ -11,7 +11,7 @@ type FileUploadData = {
 
 export function DirectoryActions()
 {
-    const {currentPath, refresh, loading} = useFileSystemEntry();
+    const {currentPath, refresh, loading, downloadCurrentDirectory, selectedEntries, downloadSelected} = useFileSystemEntry();
     const [fileUploadData, setFileUploadData] = useState<FileUploadData | null>(null);
     if (currentPath === null) return <></>;
 
@@ -37,15 +37,31 @@ export function DirectoryActions()
         };
     };
 
+    // Check if there are selected entries
+    const hasSelectedEntries = selectedEntries.size > 0;
+
     return (
         <>
-            <ButtonGroup>
-                <Tooltip content={"Upload File"}><Button variant={"ghost"} size={"sm"} className={"text-xl"} onPress={handleUpload}><Icon icon={"mage:file-upload-fill"}/></Button></Tooltip>
-                <Tooltip content={"Archive and Download"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:archive-fill"}/></Button></Tooltip>
-                <Tooltip content={"Create New Directory"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:folder-plus-fill"}/></Button></Tooltip>
-                <Tooltip content={"Create New File"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:file-plus-fill"}/></Button></Tooltip>
-                <Tooltip content={"Refresh"}><Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={refresh} isLoading={loading}>{!loading && <Icon icon={"mage:refresh"}/>}</Button></Tooltip>
-            </ButtonGroup>
+            <div className="flex flex-row gap-2">
+                <ButtonGroup>
+                    {hasSelectedEntries ? (
+
+                        <Badge content={selectedEntries.size}>
+                            <Tooltip content={"Archive and Download"}>
+                                <Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={downloadSelected}><Icon icon={"mage:archive-fill"}/></Button>
+                            </Tooltip>
+                        </Badge>
+                    ) : (
+                        <Tooltip content={"Archive and Download"}>
+                            <Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={downloadCurrentDirectory}><Icon icon={"mage:archive-fill"}/></Button>
+                        </Tooltip>
+                    )}
+                    <Tooltip content={"Upload File"}><Button variant={"ghost"} size={"sm"} className={"text-xl"} onPress={handleUpload}><Icon icon={"mage:file-upload-fill"}/></Button></Tooltip>
+                    <Tooltip content={"Create New Directory"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:folder-plus-fill"}/></Button></Tooltip>
+                    <Tooltip content={"Create New File"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:file-plus-fill"}/></Button></Tooltip>
+                    <Tooltip content={"Refresh"}><Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={refresh} isLoading={loading}>{!loading && <Icon icon={"mage:refresh"}/>}</Button></Tooltip>
+                </ButtonGroup>
+            </div>
             {fileUploadData && (
                 <Alert
                     className={"absolute w-fit bottom-5 right-5"}
