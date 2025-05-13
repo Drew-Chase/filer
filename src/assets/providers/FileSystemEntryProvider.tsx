@@ -22,6 +22,11 @@ interface FileSystemEntryContextType
     copyEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
     moveEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
     deleteEntry: (path: string) => Promise<void>;
+    selectedEntries: Set<string>;
+    setSelectedEntries: (keys: Set<string>) => void;
+    downloadSelected: () => Promise<void>;
+    downloadCurrentDirectory: () => Promise<void>;
+    downloadEntry: (entry: FilesystemEntry) => Promise<void>;
 }
 
 const FileSystemEntryContext = createContext<FileSystemEntryContextType | undefined>(undefined);
@@ -39,6 +44,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     const [currentEntryBeingMoved, setCurrentEntryBeingMoved] = useState<FilesystemEntry | null>(null);
     const [currentEntryBeingCopied, setCurrentEntryBeingCopied] = useState<FilesystemEntry | null>(null);
     const [currentEntryBeingDeleted, setCurrentEntryBeingDeleted] = useState<FilesystemEntry | null>(null);
+    const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
 
 
 // Modify the useEffect hook that watches pathname
@@ -229,6 +235,54 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         setCurrentEntryBeingDeleted(entry);
     }, []);
 
+    const downloadEntry = useCallback(async (entry: FilesystemEntry) => {
+        if (!isLoggedIn) return;
+        try {
+            await fs.download(entry);
+        } catch (error) {
+            console.error("Error downloading entry:", error);
+            throw error;
+        }
+    }, [isLoggedIn]);
+
+    const downloadSelected = useCallback(async () => {
+        if (!isLoggedIn || selectedEntries.size === 0) return;
+
+        try {
+            // Get the selected entries from the data
+            const entriesToDownload = data.entries.filter(entry => 
+                selectedEntries.has(entry.path)
+            );
+
+            if (entriesToDownload.length > 0) {
+                await fs.download(entriesToDownload);
+            }
+        } catch (error) {
+            console.error("Error downloading selected entries:", error);
+            throw error;
+        }
+    }, [isLoggedIn, selectedEntries, data.entries]);
+
+    const downloadCurrentDirectory = useCallback(async () => {
+        if (!isLoggedIn || !currentPath) return;
+
+        try {
+            // Find the current directory entry
+            const currentDirEntry: FilesystemEntry = {
+                filename: currentPath.split('/').filter(Boolean).pop() || 'root',
+                path: currentPath,
+                size: 0,
+                last_modified: new Date(),
+                creation_date: new Date(),
+                is_dir: true
+            };
+
+            await fs.download(currentDirEntry);
+        } catch (error) {
+            console.error("Error downloading current directory:", error);
+            throw error;
+        }
+    }, [isLoggedIn, currentPath]);
 
     return (
         <FileSystemEntryContext.Provider value={{
@@ -246,7 +300,12 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             openDeleteModal,
             copyEntry,
             moveEntry,
-            deleteEntry
+            deleteEntry,
+            selectedEntries,
+            setSelectedEntries,
+            downloadSelected,
+            downloadCurrentDirectory,
+            downloadEntry
         }}>
             <RenameModal entry={currentEntryBeingRenamed} onClose={() => setCurrentEntryBeingRenamed(null)}/>
             {children}
