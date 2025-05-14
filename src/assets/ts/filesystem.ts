@@ -86,49 +86,20 @@ export class FileSystem
      */
     public async download(entry: FilesystemEntry | FilesystemEntry[]): Promise<void>
     {
-        try
-        {
-            const a = document.createElement("a");
-            let headers = {};
-            if (Array.isArray(entry))
-            {
-                headers = {
-                    "X-Multiple-Paths": JSON.stringify(entry.map(e => e.path))
-                };
-                a.download = `${Math.random().toString(36).substring(7)}.zip`;
-            } else
-            {
-                headers = {
-                    "X-Filesystem-Path": entry.path
-                };
-                if (entry.is_dir)
-                    a.download = `${entry.filename}.zip`;
-                else
-                    a.download = entry.filename;
-            }
-            const response = await fetch(`${this.baseUrl}/download`, {
-                headers
-            });
+        const cwd = window.location.pathname.replace("/files/", "");
+        const url = new URL(`${this.baseUrl}/download`, window.location.href);
+        
+        const items = entry instanceof Array ? entry : [entry];
+        url.searchParams.set("items", JSON.stringify(items.map(e => e.path.replace(cwd, ""))));
+        
+        url.searchParams.set("cwd", cwd);
 
-            if (!response.ok)
-            {
-                throw new Error(`Download failed: ${response.status} - ${response.statusText}`);
-            }
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            a.style.display = "none";
-            a.href = url;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } catch (error)
-        {
-            console.error("Download error:", error);
-            throw error;
-        }
+        const anchor = document.createElement("a");
+        anchor.target = "_blank";
+        anchor.href = url.href;
+        anchor.click();
     }
+
 
     async copyEntry(sourcePath: string, destinationPath: string): Promise<void>
     {

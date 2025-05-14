@@ -1,15 +1,20 @@
 use crate::auth::auth_middleware::Authentication;
+use crate::filesystem::channel_writer::ChannelWriter;
+use crate::filesystem::download_parameters::DownloadParameters;
 use crate::filesystem::filesystem_data::{FilesystemData, FilesystemEntry};
-use crate::helpers::http_error::{Error, Result};
+use crate::helpers::http_error::Result;
 use actix_web::web::{Bytes, Query};
-use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_lab::__reexports::futures_util::StreamExt;
 use actix_web_lab::sse::{Data, Event, Sse};
 use async_stream::stream;
 use futures::Stream;
 use serde_json::json;
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::ffi::OsStr;
+use std::io;
+use std::io::Read;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -17,11 +22,10 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use sysinfo::Disks;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::Mutex;
 use tokio::sync::mpsc::Sender;
-use uuid::uuid;
-use zip::CompressionMethod;
-use zip::write::SimpleFileOptions;
+use tokio::sync::Mutex;
+use zip::write::{FileOptions, SimpleFileOptions};
+use zip::{CompressionMethod, ZipWriter};
 
 // At module level
 static UPLOAD_TRACKERS: OnceLock<UploadTracker> = OnceLock::new();
@@ -80,497 +84,137 @@ async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> 
 }
 
 #[get("/download")]
-async fn download(request: HttpRequest) -> Result<impl Responder> {
-    // Check if X-Multiple-Paths header exists
-    if let Some(multiple_paths_header) = request.headers().get("X-Multiple-Paths") {
-        // Parse the JSON array of paths
-        let paths_str = match multiple_paths_header.to_str() {
-            Ok(paths_str) => paths_str,
-            Err(_) => {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "X-Multiple-Paths header is not a valid string"
-                })));
-            }
-        };
+async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
+    let items: Vec<PathBuf> = query
+        .items
+        .iter()
+        .map(|item| Path::new(format!("{}{}", query.cwd, item).as_str()).to_path_buf())
+        .collect();
+    let is_single_entry = items.len() == 1;
+    let is_single_entry_directory = is_single_entry && items[0].is_dir();
 
-        let paths: Vec<String> = match serde_json::from_str(paths_str) {
-            Ok(paths) => paths,
-            Err(e) => {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": format!("Failed to parse X-Multiple-Paths header as JSON array: {}", e)
-                })));
-            }
-        };
-
-        if paths.is_empty() {
-            return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "X-Multiple-Paths header must contain at least one path"
-            })));
+    let filename: String = if is_single_entry {
+        let guid = uuid::Uuid::new_v4().to_string();
+        let name = items[0]
+            .file_name()
+            .unwrap_or(OsStr::new(&guid))
+            .to_string_lossy()
+            .to_owned();
+        if is_single_entry_directory {
+            format!("{}.zip", name)
+        } else {
+            name.to_string()
         }
+    } else {
+        uuid::Uuid::new_v4().to_string()
+    };
 
-        // Convert strings to PathBufs
-        let path_bufs: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-
-        // Find the common base path for all paths
-        let common_base = {
-            // First, convert all paths to PathBufs for easier manipulation
-            let path_bufs: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-
-            if path_bufs.is_empty() {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "No valid paths provided"
-                })));
-            }
-
-            // Get the parent directory of the first path
-            let first_path = &path_bufs[0];
-            let mut common_parent = if first_path.is_file() {
-                first_path.parent().unwrap_or(Path::new("")).to_path_buf()
-            } else {
-                first_path.clone()
-            };
-
-            // Find the common parent directory
-            for path in &path_bufs[1..] {
-                let path_parent = if path.is_file() {
-                    path.parent().unwrap_or(Path::new("")).to_path_buf()
-                } else {
-                    path.clone()
-                };
-
-                // Find the common parent by comparing components
-                let common_components: Vec<_> = common_parent
-                    .components()
-                    .zip(path_parent.components())
-                    .take_while(|(a, b)| a == b)
-                    .map(|(a, _)| a)
-                    .collect();
-
-                if common_components.is_empty() {
-                    // No common parent, use the drive root
-                    if let Some(drive) = common_parent.components().next() {
-                        common_parent = PathBuf::from(drive.as_os_str());
-                    } else {
-                        common_parent = PathBuf::new();
-                    }
-                    break;
-                } else {
-                    // Rebuild the common parent from components
-                    common_parent =
-                        common_components
-                            .iter()
-                            .fold(PathBuf::new(), |mut path, component| {
-                                path.push(component.as_os_str());
-                                path
-                            });
-                }
-            }
-
-            // Convert to string and ensure it ends with a separator
-            let mut common_prefix = common_parent.to_string_lossy().to_string();
-            if !common_prefix.is_empty() && !common_prefix.ends_with('\\') {
-                common_prefix.push('\\');
-            }
-
-            common_prefix
-        };
-
-        // Create a 100% in-memory streaming zip solution for multiple paths
+    // If there is only one entry, and it's a file,
+    // then stream the individual file to the client.
+    if is_single_entry && !is_single_entry_directory {
         let data_stream: Pin<Box<dyn Stream<Item = Result<Bytes>>>> = Box::pin(stream! {
-            // Create an in-memory buffer for the zip
-            let buffer_size = 64 * 1024; // 64KB buffer
-            let in_memory_buffer = std::io::Cursor::new(Vec::new());
-
-            // Create a zip writer that writes to the in-memory buffer
-            let mut zip = zip::ZipWriter::new(in_memory_buffer);
-            let options = SimpleFileOptions::default()
-                .compression_method(CompressionMethod::Deflated);
-
-            // Use the common base path we found earlier
-            let base_path = PathBuf::from(&common_base);
-            let mut read_buffer = vec![0; buffer_size]; // 64KB read buffer
-
-            // Keep track of directories we've already added
-            let mut added_directories = std::collections::HashSet::<String>::new();
-
-            // Process each path
-            log::debug!("Processing {} paths", path_bufs.len());
-            for (i, path) in path_bufs.iter().enumerate() {
-                log::debug!("Processing path {}/{}: {}", i + 1, path_bufs.len(), path.display());
-                if path.is_dir() {
-                    log::debug!("Path is a directory: {}", path.display());
-                    // Process directory
-                    let dir = walkdir::WalkDir::new(path);
-                    let mut file_count = 0;
-                    for entry_result in dir {
-                        let dir_entry = entry_result.map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to read directory: {}", e))))?;
-                        let entry_path = dir_entry.path();
-                        file_count += 1;
-                        log::debug!("Found entry {}: {}", file_count, entry_path.display());
-
-                        // Create a relative path
-                        let entry_path_str = entry_path.to_string_lossy().replace('\\', "/");
-                        let base_path_str = base_path.to_string_lossy().replace('\\', "/");
-                        log::debug!("Entry path: {}", entry_path_str);
-                        log::debug!("Base path: {}", base_path_str);
-
-                        if entry_path_str.starts_with(&*base_path_str) {
-                            let relative_path = &entry_path_str[base_path_str.len()..];
-                            log::debug!("Relative path before processing: {}", relative_path);
-                            // Replace backslashes with forward slashes and ensure no leading slash
-                            let relative_path = relative_path.replace('\\', "/");
-                            let relative_path = relative_path.trim_start_matches('/');
-                            log::debug!("Relative path after processing: {}", relative_path);
-
-                            if entry_path.is_dir() {
-                                // Add directory entry to the zip
-                                let dir_path = if relative_path.is_empty() {
-                                    String::from("")
-                                } else {
-                                    format!("{}/", relative_path)
-                                };
-
-                                // Check if this directory has already been added
-                                if !added_directories.contains(&dir_path) {
-                                    log::debug!("Adding directory to zip: {}", dir_path);
-                                    zip.add_directory(&dir_path, options)
-                                        .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to create directory entry: {}", e))))?;
-                                    added_directories.insert(dir_path);
-                                } else {
-                                    log::debug!("Directory already exists in zip: {}", dir_path);
-                                }
-                            } else if entry_path.is_file() {
-                                // Create parent directory entries if needed
-                                if let Some(parent) = Path::new(&relative_path).parent() {
-                                    if !parent.as_os_str().is_empty() {
-                                        let parent_path = parent.to_string_lossy().replace('\\', "/");
-                                        if !parent_path.is_empty() {
-                                            let dir_path = format!("{}/", parent_path);
-                                            // Check if this directory has already been added
-                                            if !added_directories.contains(&dir_path) {
-                                                log::debug!("Adding parent directory to zip: {}", dir_path);
-                                                zip.add_directory(&dir_path, options)
-                                                    .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to create directory entry: {}", e))))?;
-                                                added_directories.insert(dir_path);
-                                            } else {
-                                                log::debug!("Directory already exists in zip: {}", dir_path);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Start a new file in the zip
-                                log::debug!("Adding file to zip: {}", relative_path);
-                                zip.start_file(relative_path, options)
-                                    .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to create zip entry: {}", e))))?;
-
-                                // Open the file
-                                let mut file = std::fs::File::open(entry_path)
-                                    .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to open file {}: {}", entry_path.display(), e))))?;
-
-                                // Read and write the file in chunks
-                                let mut total_bytes_written = 0;
-                                loop {
-                                    let bytes_read = file.read(&mut read_buffer)
-                                        .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to read file {}: {}", entry_path.display(), e))))?;
-
-                                    if bytes_read == 0 { break; }
-
-                                    zip.write_all(&read_buffer[..bytes_read])
-                                        .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to write to zip: {}", e))))?;
-
-                                    total_bytes_written += bytes_read;
-                                }
-                                log::debug!("Wrote {} bytes to zip for file: {}", total_bytes_written, relative_path);
-                            }
-                        }
-                    }
-                } else if path.is_file() {
-                    log::debug!("Path is a file: {}", path.display());
-                    // Process single file
-                    // Create a relative path
-                    let path_str = path.to_string_lossy();
-                    let path_str = path_str.replace('\\', "/");
-
-                    let base_path_str = base_path.to_string_lossy();
-                    let base_path_str = base_path_str.replace('\\', "/");
-                    let base_path_str = base_path_str.trim_end_matches('/');
-                    log::debug!("Base path: {}", base_path_str);
-
-                    if path_str.starts_with(&*base_path_str) {
-                        let relative_path = &path_str[base_path_str.len()..];
-                        log::debug!("Relative path before processing: {}", relative_path);
-                        // Replace backslashes with forward slashes and ensure no leading slash
-                        let relative_path = relative_path.replace('\\', "/");
-                        let relative_path = relative_path.trim_start_matches('/');
-                        log::debug!("Relative path after processing: {}", relative_path);
-
-                        // Create parent directory entries if needed
-                        if let Some(parent) = Path::new(&relative_path).parent() {
-                            if !parent.as_os_str().is_empty() {
-                                let parent_path = parent.to_string_lossy().replace('\\', "/");
-                                if !parent_path.is_empty() {
-                                    let dir_path = format!("{}/", parent_path);
-                                    // Check if this directory has already been added
-                                    if !added_directories.contains(&dir_path) {
-                                        log::debug!("Adding parent directory to zip: {}", dir_path);
-                                        zip.add_directory(&dir_path, options)
-                                            .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to create directory entry: {}", e))))?;
-                                        added_directories.insert(dir_path);
-                                    } else {
-                                        log::debug!("Directory already exists in zip: {}", dir_path);
-                                    }
-                                }
-                            }
-                        }
-
-                        // Start a new file in the zip
-                        log::debug!("Adding file to zip: {}", relative_path);
-                        zip.start_file(relative_path, options)
-                            .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to create zip entry: {}", e))))?;
-
-                        // Open the file
-                        let mut file = std::fs::File::open(path)
-                            .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to open file {}: {}", path.display(), e))))?;
-
-                        // Read and write the file in chunks
-                        let mut total_bytes_written = 0;
-                        loop {
-                            let bytes_read = file.read(&mut read_buffer)
-                                .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to read file {}: {}", path.display(), e))))?;
-
-                            if bytes_read == 0 { break; }
-
-                            zip.write_all(&read_buffer[..bytes_read])
-                                .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to write to zip: {}", e))))?;
-
-                            total_bytes_written += bytes_read;
-                        }
-                        log::debug!("Wrote {} bytes to zip for file: {}", total_bytes_written, relative_path);
-                    }
+        let buffer_size = 64 * 1024; // 64KB buffer
+        let mut read_buffer = vec![0; buffer_size];
+            let mut reader = std::fs::File::open(items[0].clone()).map_err(|e| anyhow::anyhow!(e))?;
+            loop {
+                let bytes_read = reader.read(&mut read_buffer).map_err(|_| anyhow::Error::msg("Failed to read file bytes"))?;
+                if bytes_read == 0 {
+                    break;
                 }
+                yield Result::<Bytes>::Ok(Bytes::copy_from_slice(&read_buffer[..bytes_read]));
             }
+            return;
 
-            // Finish the zip file (writes the central directory)
-            let cursor = zip.finish()
-                .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to finish zip file: {}", e))))?;
-
-            // Get the final zip data
-            let zip_data = cursor.into_inner();
-
-            // Log the size of the zip data
-            log::debug!("Multi-path zip data size: {} bytes", zip_data.len());
-
-            if zip_data.is_empty() {
-                log::error!("Multi-path zip data is empty! No files were added to the archive.");
-                // Add a dummy file to the zip so it's not empty
-                let dummy_content = b"This is a dummy file to prevent the zip from being empty.";
-                yield Ok(Bytes::from(dummy_content.to_vec()));
-            } else {
-                // Stream the zip data in chunks
-                for (i, chunk) in zip_data.chunks(buffer_size).enumerate() {
-                    log::debug!("Streaming chunk {}, size: {} bytes", i + 1, chunk.len());
-                    yield Ok(Bytes::from(chunk.to_vec()));
-                }
-            }
         });
-
         return Ok(HttpResponse::Ok()
             .content_type("application/octet-stream")
             .insert_header((
                 "Content-Disposition",
-                format!(r#"attachment; filename="{}.zip""#, uuid::Uuid::new_v4()),
+                format!(r#"attachment; filename="{}""#, filename),
             ))
             .streaming(data_stream));
     }
 
-    // If X-Multiple-Paths header doesn't exist, fall back to the original behavior
-    let path = match request.headers().get("X-Filesystem-Path") {
-        Some(header) => match header.to_str() {
-            Ok(path_str) => PathBuf::from(path_str),
-            Err(_) => {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "X-Filesystem-Path header is not a valid string"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "X-Filesystem-Path header is missing"
-            })));
-        }
-    };
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<std::result::Result<Bytes, io::Error>>(8);
+    let cwd = query.cwd.clone();
+    let items = items.clone();
 
-    let entry: FilesystemEntry = path.clone().try_into()?;
-    if entry.is_dir {
-        // Create a 100% in-memory streaming zip solution
-        let data_stream: Pin<Box<dyn Stream<Item = Result<Bytes>>>> = Box::pin(stream! {
-            // Create an in-memory buffer for the zip
-            let buffer_size = 64 * 1024; // 64KB buffer
-            let in_memory_buffer = std::io::Cursor::new(Vec::new());
+    tokio::task::spawn_blocking(move || {
+        let mut writer = ChannelWriter::new(tx);
+        let mut zip = ZipWriter::new(&mut writer);
+        let options: SimpleFileOptions =
+            FileOptions::default().compression_method(CompressionMethod::Deflated);
 
-            // Create a zip writer that writes to the in-memory buffer
-            let mut zip = zip::ZipWriter::new(in_memory_buffer);
-            let options = SimpleFileOptions::default()
-                .compression_method(CompressionMethod::Deflated);
+        // Collect all files paths to put in the zip
+        let items_to_write = if is_single_entry_directory {
+            std::fs::read_dir(items[0].clone())
+                .unwrap()
+                .filter_map(|entry| entry.ok().map(|e| e.path()))
+                .collect::<Vec<PathBuf>>()
+        } else {
+            items
+        };
 
-            // Process files as we discover them
-            let base_path = PathBuf::from(&entry.path);
-            log::debug!("Single directory case - Base path: {}", base_path.display());
-            let mut read_buffer = vec![0; buffer_size]; // 64KB read buffer
+        let mut read_buffer = vec![0; 64 * 1024];
 
-            // Keep track of directories we've already added
-            let mut added_directories = std::collections::HashSet::<String>::new();
-
-            // Process files directly from the directory walker
-            log::debug!("Walking directory: {}", entry.path);
-            let dir = walkdir::WalkDir::new(&entry.path);
-            let mut file_count = 0;
-            for entry_result in dir {
-                let dir_entry = entry_result.map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to read directory: {}", e))))?;
-                let path = dir_entry.path();
-                file_count += 1;
-                log::debug!("Found entry {}: {}", file_count, path.display());
-
-                // Process both files and directories
-                log::debug!("Checking if path can be stripped of base path: {} vs {}", path.display(), base_path.display());
-                if let Ok(relative_path) = path.strip_prefix(&base_path) {
-                    log::debug!("Relative path after strip_prefix: {}", relative_path.display());
-                    // Convert to string and ensure forward slashes
-                    let rel_path_str = relative_path.to_string_lossy().replace('\\', "/");
-                    log::debug!("Relative path after processing: {}", rel_path_str);
-
-                    if path.is_dir() {
-                        // Add directory entry to the zip
-                        let dir_path = if rel_path_str.is_empty() {
-                            String::from("")
-                        } else {
-                            format!("{}/", rel_path_str)
-                        };
-
-                        // Check if this directory has already been added
-                        if !added_directories.contains(&dir_path) {
-                            log::debug!("Adding directory to zip: {}", dir_path);
-                            zip.add_directory(&dir_path, options)
-                                .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to create directory entry: {}", e))))?;
-                            added_directories.insert(dir_path);
-                        } else {
-                            log::debug!("Directory already exists in zip: {}", dir_path);
-                        }
-                    } else if path.is_file() {
-                        // Create parent directory entries if needed
-                        if let Some(parent) = Path::new(&rel_path_str).parent() {
-                            if !parent.as_os_str().is_empty() {
-                                let parent_path = parent.to_string_lossy().replace('\\', "/");
-                                if !parent_path.is_empty() {
-                                    let dir_path = format!("{}/", parent_path);
-                                    // Check if this directory has already been added
-                                    if !added_directories.contains(&dir_path) {
-                                        log::debug!("Adding parent directory to zip: {}", dir_path);
-                                        zip.add_directory(&dir_path, options)
-                                            .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to create directory entry: {}", e))))?;
-                                        added_directories.insert(dir_path);
-                                    } else {
-                                        log::debug!("Directory already exists in zip: {}", dir_path);
-                                    }
+        for item in items_to_write {
+            if let Some(filename) = item.file_name() {
+                let filename = filename.to_string_lossy().to_owned();
+                if item.is_dir() {
+                    zip.add_directory(filename.clone(), options).unwrap();
+                    let sub_paths = walkdir::WalkDir::new(item.clone());
+                    for entry in sub_paths {
+                        if let Ok(entry) = entry {
+                            let path = entry.path();
+                            if path.is_dir() {
+                                continue;
+                            }
+                            let path_str = path.to_string_lossy().replace("\\", "/");
+                            let relative_path = path_str.replace(&format!("{}/", cwd), "");
+                            zip.start_file(relative_path, options).unwrap();
+                            let mut file = std::fs::File::open(&path).unwrap();
+                            loop {
+                                let bytes_read = file.read(&mut read_buffer).unwrap();
+                                if bytes_read == 0 {
+                                    break;
                                 }
+                                zip.write_all(&read_buffer[..bytes_read]).unwrap();
                             }
                         }
-
-                        // Start a new file in the zip
-                        log::debug!("Adding file to zip: {}", rel_path_str);
-                        let rel_path_for_zip = rel_path_str.clone();
-                        zip.start_file(rel_path_for_zip, options)
-                            .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to create zip entry: {}", e))))?;
-
-                        // Open the file
-                        let mut file = std::fs::File::open(path)
-                            .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to open file {}: {}", path.display(), e))))?;
-
-                        // Read and write the file in chunks
-                        let mut total_bytes_written = 0;
-                        loop {
-                            let bytes_read = file.read(&mut read_buffer)
-                                .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to read file {}: {}", path.display(), e))))?;
-
-                            if bytes_read == 0 { break; }
-
-                            zip.write_all(&read_buffer[..bytes_read])
-                                .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to write to zip: {}", e))))?;
-
-                            total_bytes_written += bytes_read;
+                    }
+                } else {
+                    zip.start_file(filename, options).unwrap();
+                    let mut file = std::fs::File::open(item.clone()).unwrap();
+                    loop {
+                        let bytes_read = file.read(&mut read_buffer).unwrap();
+                        if bytes_read == 0 {
+                            break;
                         }
-                        log::debug!("Wrote {} bytes to zip for file: {}", total_bytes_written, rel_path_str);
+                        zip.write_all(&read_buffer[..bytes_read]).unwrap();
                     }
                 }
             }
+        }
 
-            // Finish the zip file (writes the central directory)
-            let cursor = zip.finish()
-                .map_err(|e| Error::InternalError(anyhow::Error::msg(format!("Failed to finish zip file: {}", e))))?;
+        zip.finish().unwrap();
+        writer.flush().unwrap();
+    });
 
-            // Get the final zip data
-            let zip_data = cursor.into_inner();
-
-            // Log the size of the zip data
-            log::debug!("Single directory zip data size: {} bytes", zip_data.len());
-
-            if zip_data.is_empty() {
-                log::error!("Single directory zip data is empty! No files were added to the archive.");
-                // Add a dummy file to the zip so it's not empty
-                let dummy_content = b"This is a dummy file to prevent the zip from being empty.";
-                yield Ok(Bytes::from(dummy_content.to_vec()));
-            } else {
-                // Stream the zip data in chunks
-                for (i, chunk) in zip_data.chunks(buffer_size).enumerate() {
-                    log::debug!("Streaming chunk {}, size: {} bytes", i + 1, chunk.len());
-                    yield Ok(Bytes::from(chunk.to_vec()));
+    let data_stream: Pin<Box<dyn Stream<Item = Result<Bytes>>>> = Box::pin(stream! {
+            while let Some(chunk) = rx.recv().await {
+                if let Ok(bytes) = chunk{
+                  yield Result::<Bytes>::Ok(Bytes::copy_from_slice(&bytes));
                 }
             }
-        });
+    });
 
-        Ok(HttpResponse::Ok()
-            .content_type("application/octet-stream")
-            .insert_header((
-                "Content-Disposition",
-                format!(r#"attachment; filename="{}.zip""#, entry.filename),
-            ))
-            .streaming(data_stream))
-    } else {
-        // stream file.
-        let file = std::fs::File::open(&entry.path).map_err(|_| {
-            Error::InternalError(anyhow::Error::msg(format!(
-                "Failed to open file: {}",
-                entry.path
-            )))
-        })?;
-
-        let data_stream = stream! {
-            let mut chunk = vec![0u8;10*1024*1024];
-            let mut file = file;
-            loop {
-                match file.read(&mut chunk) {
-                    Ok(bytes_read) => {
-                        if bytes_read == 0 { break; }
-                        yield Result::<Bytes>::Ok(Bytes::from(chunk[..bytes_read].to_vec()));
-                    },
-                    Err(e) => {
-                        yield Result::<Bytes>::Err(Error::InternalError(anyhow::Error::msg(format!(
-                            "Failed to read file: {}", e
-                        ))));
-                        break;
-                    }
-                }
-            }
-        };
-        Ok(HttpResponse::Ok()
-            .content_type("application/octet-stream")
-            .insert_header((
-                "Content-Disposition",
-                format!(r#"attachment; filename="{}""#, entry.filename),
-            ))
-            .streaming(data_stream))
-    }
+    Ok(HttpResponse::Ok()
+        .content_type("application/zip")
+        .insert_header((
+            "Content-Disposition",
+            format!(r#"attachment; filename="{}""#, filename),
+        ))
+        .streaming(data_stream))
 }
 
 #[get("search")]
@@ -751,10 +395,7 @@ async fn copy_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
     // Copy the filesystem entry
     if source_path.is_dir() {
         // Create a copy function for recursive directory copy
-        fn copy_dir_all(
-            src: impl AsRef<std::path::Path>,
-            dst: impl AsRef<std::path::Path>,
-        ) -> std::io::Result<()> {
+        fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
             std::fs::create_dir_all(&dst)?;
             for entry in std::fs::read_dir(src)? {
                 let entry = entry?;
