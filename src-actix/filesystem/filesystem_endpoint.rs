@@ -156,10 +156,13 @@ async fn download(request: HttpRequest) -> Result<impl Responder> {
                     break;
                 } else {
                     // Rebuild the common parent from components
-                    common_parent = common_components.iter().fold(PathBuf::new(), |mut path, component| {
-                        path.push(component.as_os_str());
-                        path
-                    });
+                    common_parent =
+                        common_components
+                            .iter()
+                            .fold(PathBuf::new(), |mut path, component| {
+                                path.push(component.as_os_str());
+                                path
+                            });
                 }
             }
 
@@ -206,8 +209,8 @@ async fn download(request: HttpRequest) -> Result<impl Responder> {
                         log::debug!("Found entry {}: {}", file_count, entry_path.display());
 
                         // Create a relative path
-                        let entry_path_str = entry_path.to_string_lossy();
-                        let base_path_str = base_path.to_string_lossy();
+                        let entry_path_str = entry_path.to_string_lossy().replace('\\', "/");
+                        let base_path_str = base_path.to_string_lossy().replace('\\', "/");
                         log::debug!("Entry path: {}", entry_path_str);
                         log::debug!("Base path: {}", base_path_str);
 
@@ -287,7 +290,11 @@ async fn download(request: HttpRequest) -> Result<impl Responder> {
                     // Process single file
                     // Create a relative path
                     let path_str = path.to_string_lossy();
+                    let path_str = path_str.replace('\\', "/");
+
                     let base_path_str = base_path.to_string_lossy();
+                    let base_path_str = base_path_str.replace('\\', "/");
+                    let base_path_str = base_path_str.trim_end_matches('/');
                     log::debug!("Base path: {}", base_path_str);
 
                     if path_str.starts_with(&*base_path_str) {
