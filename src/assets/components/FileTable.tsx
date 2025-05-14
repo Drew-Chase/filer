@@ -42,6 +42,11 @@ export default function FileTable()
             )}
             onSelectionChange={(keys) =>
             {
+                if(keys === "all")
+                {
+                    setSelectedEntries(new Set(data.entries.map(entry => entry.path)));
+                    return;
+                }
                 // Convert the keys to a Set of strings
                 const selectedKeys = new Set(Array.from(keys).map(key =>
                 {
@@ -62,26 +67,6 @@ export default function FileTable()
                 <TableColumn className="text-right">Actions</TableColumn>
             </TableHeader>
             <TableBody isLoading={loading} loadingContent={<Spinner color={"primary"}/>}>
-                {data?.parent && (
-                    <TableRow>
-                        <TableCell className="font-medium">
-                            <Button
-                                onPress={() => navigate(data.parent || "/")}
-                                variant={"light"}
-                                size={"sm"}
-                                className={`text-start justify-start w-full`}
-                            >
-                                <Icon icon={"mage:folder-fill"} className={"text-2xl text-blue-500"}/> ../ (Parent Directory)
-                            </Button>
-                        </TableCell>
-                        <TableCell>Directory</TableCell>
-                        <TableCell>-</TableCell>
-                        <TableCell>-</TableCell>
-                        <TableCell>-</TableCell>
-                        <TableCell className="text-right">-</TableCell>
-                    </TableRow>
-                )}
-
                 {data.entries.map((entry, index) => (
                     <TableRow key={index}>
                         <TableCell className="font-medium">
