@@ -99,7 +99,7 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
             .file_name()
             .unwrap_or(OsStr::new(&guid))
             .to_string_lossy()
-            .to_owned();
+            .into_owned();
         if is_single_entry_directory {
             format!("{}.zip", name)
         } else {
