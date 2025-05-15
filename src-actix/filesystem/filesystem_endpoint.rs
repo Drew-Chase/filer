@@ -4,7 +4,7 @@ use crate::filesystem::download_parameters::DownloadParameters;
 use crate::filesystem::filesystem_data::{FilesystemData, FilesystemEntry};
 use crate::helpers::http_error::Result;
 use actix_web::web::{Bytes, Query};
-use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
 use actix_web_lab::__reexports::futures_util::StreamExt;
 use actix_web_lab::sse::{Data, Event, Sse};
 use async_stream::stream;
@@ -22,8 +22,8 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use sysinfo::Disks;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::Sender;
 use zip::write::{FileOptions, SimpleFileOptions};
 use zip::{CompressionMethod, ZipWriter};
 
@@ -159,27 +159,25 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
 
         for item in items_to_write {
             if let Some(filename) = item.file_name() {
-                let filename = filename.to_string_lossy().to_owned();
+                let filename = filename.to_string_lossy().into_owned();
                 if item.is_dir() {
                     zip.add_directory(filename.clone(), options).unwrap();
                     let sub_paths = walkdir::WalkDir::new(item.clone());
-                    for entry in sub_paths {
-                        if let Ok(entry) = entry {
-                            let path = entry.path();
-                            if path.is_dir() {
-                                continue;
+                    for entry in sub_paths.into_iter().flatten() {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            continue;
+                        }
+                        let path_str = path.to_string_lossy().replace("\\", "/");
+                        let relative_path = path_str.replace(&format!("{}/", cwd), "");
+                        zip.start_file(relative_path, options).unwrap();
+                        let mut file = std::fs::File::open(path).unwrap();
+                        loop {
+                            let bytes_read = file.read(&mut read_buffer).unwrap();
+                            if bytes_read == 0 {
+                                break;
                             }
-                            let path_str = path.to_string_lossy().replace("\\", "/");
-                            let relative_path = path_str.replace(&format!("{}/", cwd), "");
-                            zip.start_file(relative_path, options).unwrap();
-                            let mut file = std::fs::File::open(&path).unwrap();
-                            loop {
-                                let bytes_read = file.read(&mut read_buffer).unwrap();
-                                if bytes_read == 0 {
-                                    break;
-                                }
-                                zip.write_all(&read_buffer[..bytes_read]).unwrap();
-                            }
+                            zip.write_all(&read_buffer[..bytes_read]).unwrap();
                         }
                     }
                 } else {
