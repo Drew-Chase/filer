@@ -4,11 +4,12 @@ use crate::filesystem::download_parameters::DownloadParameters;
 use crate::filesystem::filesystem_data::{FilesystemData, FilesystemEntry};
 use crate::helpers::http_error::Result;
 use actix_web::web::{Bytes, Query};
-use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_lab::__reexports::futures_util::StreamExt;
 use actix_web_lab::sse::{Data, Event, Sse};
 use async_stream::stream;
 use futures::Stream;
+use log::*;
 use serde_json::json;
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -22,8 +23,8 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use sysinfo::Disks;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::Mutex;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 use zip::write::{FileOptions, SimpleFileOptions};
 use zip::{CompressionMethod, ZipWriter};
 
@@ -112,10 +113,12 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
     // If there is only one entry, and it's a file,
     // then stream the individual file to the client.
     if is_single_entry && !is_single_entry_directory {
+        let filepath = items[0].clone();
+        debug!("Downloading single file: {}", filepath.display());
         let data_stream: Pin<Box<dyn Stream<Item = Result<Bytes>>>> = Box::pin(stream! {
         let buffer_size = 64 * 1024; // 64KB buffer
         let mut read_buffer = vec![0; buffer_size];
-            let mut reader = std::fs::File::open(items[0].clone()).map_err(|e| anyhow::anyhow!(e))?;
+            let mut reader = std::fs::File::open(filepath).map_err(|e| anyhow::anyhow!(e))?;
             loop {
                 let bytes_read = reader.read(&mut read_buffer).map_err(|_| anyhow::Error::msg("Failed to read file bytes"))?;
                 if bytes_read == 0 {
@@ -139,7 +142,7 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
     let cwd = query.cwd.clone();
     let items = items.clone();
 
-    tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
         let mut writer = ChannelWriter::new(tx);
         let mut zip = ZipWriter::new(&mut writer);
         let options: SimpleFileOptions =
@@ -155,47 +158,58 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
             items
         };
 
-        let mut read_buffer = vec![0; 64 * 1024];
+        let mut read_buffer = [0; 64 * 1024];
 
         for item in items_to_write {
             if let Some(filename) = item.file_name() {
                 let filename = filename.to_string_lossy().into_owned();
                 if item.is_dir() {
-                    zip.add_directory(filename.clone(), options).unwrap();
-                    let sub_paths = walkdir::WalkDir::new(item.clone());
+                    zip.add_directory(filename, options)?;
+                    let sub_paths = walkdir::WalkDir::new(&item);
                     for entry in sub_paths.into_iter().flatten() {
                         let path = entry.path();
+                        let relative_path = path.strip_prefix(&cwd)?;
                         if path.is_dir() {
+                            debug!("Adding directory to zip archive: {} -> {}", path.display(), relative_path.display());
+                            zip.add_directory(relative_path.to_string_lossy().into_owned(), options)?;
                             continue;
                         }
-                        let path_str = path.to_string_lossy().replace("\\", "/");
-                        let relative_path = path_str.replace(&format!("{}/", cwd), "");
-                        zip.start_file(relative_path, options).unwrap();
-                        let mut file = std::fs::File::open(path).unwrap();
+
+                        debug!("Adding file to zip archive: {} -> {}", path.display(), relative_path.display());
+                        zip.start_file(relative_path.display(), options)?;
+                        let mut file = std::fs::File::open(path)?;
                         loop {
-                            let bytes_read = file.read(&mut read_buffer).unwrap();
+                            let bytes_read = file.read(&mut read_buffer)?;
                             if bytes_read == 0 {
                                 break;
                             }
-                            zip.write_all(&read_buffer[..bytes_read]).unwrap();
+                            zip.write_all(&read_buffer[..bytes_read])?;
                         }
                     }
                 } else {
-                    zip.start_file(filename, options).unwrap();
-                    let mut file = std::fs::File::open(item.clone()).unwrap();
+                    debug!(
+                        "Adding file to zip archive: {} -> {}",
+                        item.display(),
+                        filename
+                    );
+                    zip.start_file(filename, options)?;
+                    let mut file = std::fs::File::open(item)?;
                     loop {
-                        let bytes_read = file.read(&mut read_buffer).unwrap();
+                        let bytes_read = file.read(&mut read_buffer)?;
                         if bytes_read == 0 {
                             break;
                         }
-                        zip.write_all(&read_buffer[..bytes_read]).unwrap();
+                        zip.write_all(&read_buffer)?;
                     }
+                    zip.flush()?
                 }
             }
         }
 
-        zip.finish().unwrap();
-        writer.flush().unwrap();
+        zip.finish()?;
+        writer.flush()?;
+
+        Ok(())
     });
 
     let data_stream: Pin<Box<dyn Stream<Item = Result<Bytes>>>> = Box::pin(stream! {
