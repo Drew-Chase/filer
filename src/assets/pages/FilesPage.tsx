@@ -13,7 +13,7 @@ export default function FilesPage()
             {currentPath !== null && (
                 <div className={"flex flex-col w-full gap-4"}>
                     <div className={"flex flex-row gap-4 items-center justify-between"}>
-                        <FileTableBreadcrumbs paths={currentPath.split("/")}/>
+                        <FileTableBreadcrumbs paths={decodeURIComponent(currentPath).split("/")}/>
                         <DirectoryActions/>
                     </div>
                     <FileTable/>

@@ -42,7 +42,7 @@ export class FileSystem
         {
             const response = await fetch(`${this.baseUrl}/`, {
                 headers: {
-                    "X-Filesystem-Path": path
+                    "X-Filesystem-Path": decodeURIComponent(path)
                 }
             });
 
@@ -91,11 +91,11 @@ export class FileSystem
         
         const items = entry instanceof Array ? entry : [entry];
         url.searchParams.set("items", JSON.stringify(items.map(e => e.path.replace(cwd, ""))));
-        
+
         url.searchParams.set("cwd", cwd);
 
         const anchor = document.createElement("a");
-        anchor.target = "_blank";
+        // anchor.target = "_blank";
         anchor.href = url.href;
         anchor.click();
     }
