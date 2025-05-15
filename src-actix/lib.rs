@@ -1,8 +1,8 @@
 use crate::auth::{auth_db, auth_endpoint};
-use crate::filesystem::filesystem_endpoint;
+use io::fs::filesystem_endpoint;
 use crate::helpers::asset_endpoint::AssetsAppConfig;
 use crate::helpers::constants::{DEBUG, PORT};
-use actix_web::{App, HttpResponse, HttpServer, middleware, web};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use anyhow::Result;
 use log::Level::Info;
 use log::*;
@@ -12,8 +12,8 @@ use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
 
 mod auth;
-mod filesystem;
 mod helpers;
+mod io;
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder()
