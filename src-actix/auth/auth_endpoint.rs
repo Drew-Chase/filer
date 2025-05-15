@@ -1,7 +1,10 @@
+use std::cell::Ref;
+use std::ops::Deref;
 use crate::auth::auth_data::User;
 use crate::auth::permission_flags::PermissionFlags;
 use crate::helpers::http_error::Result;
 use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse};
+use actix_web::dev::ConnectionInfo;
 use anyhow::Error;
 use enumflags2::BitFlags;
 use serde::{Deserialize, Serialize};
@@ -235,15 +238,14 @@ async fn validate_token(req: HttpRequest) -> Result<HttpResponse> {
     // Try to get the token from cookies
     if let Some(token_cookie) = req.cookie("token") {
         let token = token_cookie.value().to_string();
-        let connection_info = req.connection_info();
-        let ip = connection_info.peer_addr().unwrap_or("unknown");
-        let host = connection_info.host().to_string();
+        let ip = req.connection_info().peer_addr().unwrap_or("unknown").to_string();
+        let host = req.connection_info().host().to_string();
         
         // Loop through all users to find one that validates with this token
         // This is not the most efficient approach but works for demonstration
         let users = User::list().await?;
         for user in users {
-            if user.authenticate_with_session_token(ip, &host, &token)? {
+            if user.authenticate_with_session_token(&ip, &host, &token)? {
                 return Ok(HttpResponse::Ok().json(json!({
                     "username": user.username,
                     "valid": true
