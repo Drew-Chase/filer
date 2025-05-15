@@ -1,7 +1,7 @@
 use crate::auth::auth_middleware::Authentication;
-use crate::filesystem::channel_writer::ChannelWriter;
-use crate::filesystem::download_parameters::DownloadParameters;
-use crate::filesystem::filesystem_data::{FilesystemData, FilesystemEntry};
+use crate::io::streams::channel_writer::ChannelWriter;
+use crate::io::fs::download_parameters::DownloadParameters;
+use crate::io::fs::filesystem_data::{FilesystemData, FilesystemEntry};
 use crate::helpers::http_error::Result;
 use actix_web::web::{Bytes, Query};
 use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
@@ -145,6 +145,9 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
     tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
         let mut writer = ChannelWriter::new(tx);
         let mut zip = ZipWriter::new(&mut writer);
+
+        // This will prevent the stream from attempting to seek backwards
+        zip.set_flush_on_finish_file(true);
         let options: SimpleFileOptions =
             FileOptions::default().compression_method(CompressionMethod::Deflated);
 
@@ -404,7 +407,7 @@ async fn copy_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
         })));
     }
 
-    // Copy the filesystem entry
+    // Copy the fs entry
     if source_path.is_dir() {
         // Create a copy function for recursive directory copy
         fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
@@ -487,7 +490,7 @@ async fn move_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
         })));
     }
 
-    // Move/rename is the same operation in filesystem terms
+    // Move/rename is the same operation in fs terms
     if let Err(e) = std::fs::rename(&source_path, &dest_path) {
         return Ok(HttpResponse::InternalServerError().json(json!({
             "error": format!("Failed to move entry: {}", e)
@@ -546,7 +549,7 @@ async fn delete_filesystem_entry(request: HttpRequest) -> Result<impl Responder>
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
-        web::scope("/filesystem")
+        web::scope("/fs")
             .wrap(Authentication::new())
             .service(get_filesystem_entries)
             .service(download)

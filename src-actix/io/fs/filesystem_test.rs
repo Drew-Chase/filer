@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::filesystem::filesystem_data::FilesystemEntry;
+    use crate::io::fs::filesystem_data::FilesystemEntry;
     use std::time::SystemTime;
     use std::io::{Cursor, Read, Write};
     use std::path::{Path, PathBuf};
@@ -431,7 +431,7 @@ mod tests {
 #[cfg(test)]
 mod endpoint_tests {
     use actix_web::{test, web, App, http::header};
-    use crate::filesystem::filesystem_endpoint;
+    use crate::io::fs::filesystem_endpoint;
     use tempfile::tempdir;
     use std::fs::File;
     use std::io::{Read, Write};
@@ -454,7 +454,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::get_filesystem_entries)
                         )
                 )
@@ -462,7 +462,7 @@ mod endpoint_tests {
 
         // Create a test request
         let req = test::TestRequest::get()
-            .uri("/api/filesystem/")
+            .uri("/api/fs/")
             .insert_header((header::CONTENT_TYPE, "application/json"))
             .insert_header(("X-Filesystem-Path", temp_path.to_string_lossy().to_string()))
             .to_request();
@@ -504,7 +504,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::download)
                         )
                 )
@@ -512,7 +512,7 @@ mod endpoint_tests {
 
         // Create a test request
         let req = test::TestRequest::get()
-            .uri("/api/filesystem/download")
+            .uri("/api/fs/download")
             .insert_header((header::CONTENT_TYPE, "application/json"))
             .insert_header(("X-Filesystem-Path", test_file_path.to_string_lossy().to_string()))
             .to_request();
@@ -570,7 +570,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::download)
                         )
                 )
@@ -578,7 +578,7 @@ mod endpoint_tests {
 
         // Create a test request
         let req = test::TestRequest::get()
-            .uri("/api/filesystem/download")
+            .uri("/api/fs/download")
             .insert_header((header::CONTENT_TYPE, "application/json"))
             .insert_header(("X-Filesystem-Path", temp_path.to_string_lossy().to_string()))
             .to_request();
@@ -651,7 +651,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::download)
                         )
                 )
@@ -666,7 +666,7 @@ mod endpoint_tests {
 
         // Create a test request
         let req = test::TestRequest::get()
-            .uri("/api/filesystem/download")
+            .uri("/api/fs/download")
             .insert_header((header::CONTENT_TYPE, "application/json"))
             .insert_header(("X-Multiple-Paths", paths_json))
             .to_request();
@@ -739,7 +739,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::search)
                         )
                 )
@@ -747,7 +747,7 @@ mod endpoint_tests {
 
         // Test with a valid query
         let req = test::TestRequest::get()
-            .uri("/api/filesystem/search?q=test")
+            .uri("/api/fs/search?q=test")
             .to_request();
 
         let resp = test::call_service(&app, req).await;
@@ -755,7 +755,7 @@ mod endpoint_tests {
 
         // Test with an invalid query (missing q parameter)
         let req = test::TestRequest::get()
-            .uri("/api/filesystem/search")
+            .uri("/api/fs/search")
             .to_request();
 
         let resp = test::call_service(&app, req).await;
@@ -780,7 +780,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::delete_filesystem_entry)
                         )
                 )
@@ -788,7 +788,7 @@ mod endpoint_tests {
 
         // Create a test request
         let req = test::TestRequest::delete()
-            .uri("/api/filesystem/")
+            .uri("/api/fs/")
             .insert_header((header::CONTENT_TYPE, "application/json"))
             .insert_header(("X-Filesystem-Path", test_file_path.to_string_lossy().to_string()))
             .to_request();
@@ -825,7 +825,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::copy_filesystem_entry)
                         )
                 )
@@ -833,7 +833,7 @@ mod endpoint_tests {
 
         // Create a test request
         let req = test::TestRequest::post()
-            .uri("/api/filesystem/copy")
+            .uri("/api/fs/copy")
             .insert_header((header::CONTENT_TYPE, "application/json"))
             .insert_header(("X-Filesystem-Path", test_file_path.to_string_lossy().to_string()))
             .insert_header(("X-NewFilesystem-Path", dest_file_path.to_string_lossy().to_string()))
@@ -862,7 +862,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::upload_progress)
                         )
                 )
@@ -871,7 +871,7 @@ mod endpoint_tests {
         // Create a test request with a test upload ID
         let upload_id = "test-upload-id";
         let req = test::TestRequest::get()
-            .uri(&format!("/api/filesystem/upload/progress/{}", upload_id))
+            .uri(&format!("/api/fs/upload/progress/{}", upload_id))
             .to_request();
 
         // Send the request and get the response
@@ -903,7 +903,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::upload)
                         )
                 )
@@ -914,7 +914,7 @@ mod endpoint_tests {
 
         // Create a test request
         let req = test::TestRequest::post()
-            .uri("/api/filesystem/upload")
+            .uri("/api/fs/upload")
             .insert_header((header::CONTENT_TYPE, "application/octet-stream"))
             .insert_header(("X-Filesystem-Path", upload_path.to_string_lossy().to_string()))
             .insert_header(("X-Upload-ID", "test-upload-id"))
@@ -957,7 +957,7 @@ mod endpoint_tests {
                 .service(
                     web::scope("/api")
                         .service(
-                            web::scope("/filesystem")
+                            web::scope("/fs")
                                 .service(filesystem_endpoint::move_filesystem_entry)
                         )
                 )
@@ -965,7 +965,7 @@ mod endpoint_tests {
 
         // Create a test request
         let req = test::TestRequest::post()
-            .uri("/api/filesystem/move")
+            .uri("/api/fs/move")
             .insert_header((header::CONTENT_TYPE, "application/json"))
             .insert_header(("X-Filesystem-Path", test_file_path.to_string_lossy().to_string()))
             .insert_header(("X-NewFilesystem-Path", dest_file_path.to_string_lossy().to_string()))
