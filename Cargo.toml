@@ -35,9 +35,9 @@ bcrypt = { version = "0.17.0" }
 futures = "0.3.31"
 async-stream = { version = "0.3.6" }
 zip = { version = "2.6.1" }
-sysinfo = { version = "0.34.2", features = ["disk"] }
+sysinfo = { version = "0.35.1", features = ["disk"] }
 tokio = { version = "1.44.2", features = ["rt-multi-thread", "signal"] }
-actix-web-lab = "0.23.0"
+actix-web-lab = "0.24.1"
 vite-actix = "0.2.3"
 uuid = { version = "1.16.0", features = ["v4"] }
 tempfile = "3.10.1"
