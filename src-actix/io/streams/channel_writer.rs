@@ -1,15 +1,17 @@
 use bytes::Bytes;
-use std::io::{self, Seek, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use tokio::sync::mpsc;
 pub struct ChannelWriter {
     tx: mpsc::Sender<Result<Bytes, io::Error>>,
     buffer: Vec<u8>,
+    pos: u64,
 }
 impl ChannelWriter {
     pub(crate) fn new(tx: mpsc::Sender<Result<Bytes, io::Error>>) -> Self {
         Self {
             tx,
             buffer: Vec::with_capacity(u16::MAX as usize),
+            pos: 0,
         }
     }
 }
@@ -39,9 +41,20 @@ impl Write for ChannelWriter {
         Ok(())
     }
 }
-
-impl Seek for ChannelWriter {
-    fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64> {
-        Ok(0)
+impl Read for ChannelWriter {
+    fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+        Err(io::Error::new(io::ErrorKind::Unsupported, "ChannelWriter is write-only"))
     }
 }
+impl Seek for ChannelWriter {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        let new_pos = match pos {
+            SeekFrom::Start(offset) => offset,
+            SeekFrom::Current(offset) => (self.pos as i64 + offset) as u64,
+            SeekFrom::End(offset) => (self.pos as i64 + offset) as u64,
+        };
+        self.pos = new_pos;
+        Ok(self.pos)
+    }
+}
+
