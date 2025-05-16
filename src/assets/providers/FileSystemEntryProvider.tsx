@@ -207,7 +207,6 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         try
         {
             await FileSystem.deleteEntry(path);
-            // Refresh the current directory to show the changes
             refresh();
         } catch (error)
         {
