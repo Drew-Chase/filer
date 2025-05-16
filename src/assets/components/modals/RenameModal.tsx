@@ -2,6 +2,7 @@ import {Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader}
 import {FilesystemEntry} from "../../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";
+import {useFileSystemEntry} from "../../providers/FileSystemEntryProvider.tsx";
 
 type RenameProperties = {
     entry: FilesystemEntry | null;
@@ -10,8 +11,10 @@ type RenameProperties = {
 
 export default function RenameModal(props: RenameProperties)
 {
-    // const {moveEntry} = useFileSystemEntry();
+    const {moveEntry, refresh} = useFileSystemEntry();
     const [filename, setFilename] = useState<string>(props.entry?.filename || "");
+    const [isLoading, setIsLoading] = useState(false);
+
 
     useEffect(() =>
     {
@@ -40,17 +43,28 @@ export default function RenameModal(props: RenameProperties)
                             />
                         </ModalBody>
                         <ModalFooter>
-                            <Button onPress={() =>
-                            {
-                                if (props.entry?.filename === filename)
+                            <Button
+                                isLoading={isLoading}
+                                onPress={async () =>
                                 {
+                                    setIsLoading(true);
+                                    if (props.entry?.filename === filename)
+                                    {
+                                        onClose();
+                                        setIsLoading(false);
+                                        return;
+                                    }
+                                    let oldPath = props.entry?.path ?? "";
+                                    let newFilePath = `${oldPath.substring(0, oldPath.lastIndexOf("/"))}/${filename}`;
+                                    console.log("Move", oldPath, newFilePath);
+                                    await moveEntry(oldPath, newFilePath);
                                     onClose();
-                                    return;
-                                }
-                                let oldPath = props.entry?.path ?? "";
-                                let newFilePath = `${oldPath.substring(0, oldPath.lastIndexOf("/"))}/${filename}`;
-                                console.log("New File Path", newFilePath);
-                            }}>Rename</Button>
+                                    refresh();
+                                    setIsLoading(false);
+                                }}
+                            >
+                                Rename
+                            </Button>
                             <Button onPress={onClose} variant={"light"} color={"danger"}>Cancel</Button>
                         </ModalFooter>
                     </>
