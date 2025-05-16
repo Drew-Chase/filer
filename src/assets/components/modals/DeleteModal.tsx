@@ -1,5 +1,5 @@
 import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
-import {FileSystem, FilesystemEntry} from "../../ts/filesystem.ts";
+import {FilesystemEntry} from "../../ts/filesystem.ts";
 import {useState} from "react";
 import {useFileSystemEntry} from "../../providers/FileSystemEntryProvider.tsx";
 
@@ -11,7 +11,7 @@ type DeleteProperties = {
 export default function DeleteModal(props: DeleteProperties)
 {
     const [isLoading, setIsLoading] = useState(false);
-    const {refresh} = useFileSystemEntry();
+    const {deleteEntry} = useFileSystemEntry();
     return (
         <Modal isOpen={props.entry !== null} onClose={props.onClose} backdrop={"blur"}>
             <ModalContent>
@@ -25,8 +25,7 @@ export default function DeleteModal(props: DeleteProperties)
                     <Button isLoading={isLoading} onPress={async () =>
                     {
                         setIsLoading(true);
-                        await FileSystem.deleteEntry(props.entry?.path || "");
-                        refresh();
+                        await deleteEntry(props.entry?.path || "");
                         props.onClose();
                         setIsLoading(false);
                     }}>Delete</Button>

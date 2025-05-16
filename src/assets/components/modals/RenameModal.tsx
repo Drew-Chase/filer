@@ -11,7 +11,7 @@ type RenameProperties = {
 
 export default function RenameModal(props: RenameProperties)
 {
-    const {moveEntry, refresh} = useFileSystemEntry();
+    const {moveEntry} = useFileSystemEntry();
     const [filename, setFilename] = useState<string>(props.entry?.filename || "");
     const [isLoading, setIsLoading] = useState(false);
 
@@ -59,7 +59,6 @@ export default function RenameModal(props: RenameProperties)
                                     console.log("Move", oldPath, newFilePath);
                                     await moveEntry(oldPath, newFilePath);
                                     onClose();
-                                    refresh();
                                     setIsLoading(false);
                                 }}
                             >
