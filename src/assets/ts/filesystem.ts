@@ -1,3 +1,4 @@
+
 /**
  * Represents a filesystem entry (file or directory)
  */
@@ -131,12 +132,12 @@ export class FileSystem
         }
     }
 
-    static async deleteEntry(path: string): Promise<void>
+    static async deleteEntry(path: string|string[]): Promise<void>
     {
-        const response = await fetch("/api/filesystem/delete", {
+        const response = await fetch("/api/filesystem/", {
             method: "DELETE",
             headers: {
-                "X-Filesystem-Path": path
+                "X-Filesystem-Paths": JSON.stringify(path instanceof Array ? path : [path])
             }
         });
 

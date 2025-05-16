@@ -200,7 +200,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         }
     }, [isLoggedIn, refresh]);
 
-    const deleteEntry = useCallback(async (path: string) =>
+    const deleteEntry = useCallback(async (path: string|string[]) =>
     {
         if (!isLoggedIn) return;
 
@@ -319,14 +319,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             downloadEntry
         }}>
             <RenameModal entry={currentEntryBeingRenamed} onClose={() => setCurrentEntryBeingRenamed(null)}/>
-            <DeleteModal entry={currentEntryBeingDeleted} onClose={async (confirm) =>
-            {
-                if (confirm)
-                {
-                    await FileSystem.deleteEntry(currentEntryBeingDeleted?.path || "");
-                }
-                setCurrentEntryBeingDeleted(null);
-            }}/>
+            <DeleteModal entry={currentEntryBeingDeleted} onClose={() => setCurrentEntryBeingDeleted(null)}/>
             {children}
         </FileSystemEntryContext.Provider>
     );

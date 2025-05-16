@@ -10,12 +10,14 @@ use actix_web_lab::sse::{Data, Event, Sse};
 use archflow::compress::tokio::archive::ZipArchive;
 use archflow::compress::FileOptions;
 use archflow::compression::CompressionMethod;
+use archflow::error::ArchiveError;
 use archflow::types::FileDateTime;
 use log::*;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -160,12 +162,11 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
                 if item.is_dir() {
                     // Process directory
                     let walker = walkdir::WalkDir::new(&item);
-                    if let Err(e) = archive.append_directory(filename.as_str(), &options).await
-                    {
+                    if let Err(e) = archive.append_directory(filename.as_str(), &options).await {
                         error!("Failed to add directory to zip archive: {}", e);
                         continue;
                     }
-                    
+
                     for entry in walker.into_iter().flatten() {
                         let path = entry.path();
                         let relative_path = path.strip_prefix(&cwd).unwrap_or(path);
@@ -176,7 +177,12 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
                                 path.display(),
                                 relative_path.display()
                             );
-                            if let Err(e) = archive.append_directory(relative_path.to_string_lossy().replace('\\', "/").as_ref(), &options).await
+                            if let Err(e) = archive
+                                .append_directory(
+                                    relative_path.to_string_lossy().replace('\\', "/").as_ref(),
+                                    &options,
+                                )
+                                .await
                             {
                                 error!("Failed to add directory to zip archive: {}", e);
                                 continue;
@@ -209,6 +215,13 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
                     if let Ok(mut file) = File::open(&item).await {
                         if let Err(e) = archive.append(filename.as_str(), &options, &mut file).await
                         {
+                            if matches!(&e, ArchiveError::IoError(err) if err.kind() == ErrorKind::BrokenPipe)
+                            {
+                                warn!(
+                                    "Zip archive stream closed, this is most-likely due to the client closing the connection."
+                                );
+                                break;
+                            }
                             error!("Failed to add file to zip archive: {}", e);
                             continue;
                         }
@@ -499,9 +512,11 @@ async fn move_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
 
 #[delete("/")]
 async fn delete_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
-    let path = match request.headers().get("X-Filesystem-Path") {
+    let paths: Vec<PathBuf> = match request.headers().get("X-Filesystem-Paths") {
         Some(header) => match header.to_str() {
-            Ok(path_str) => PathBuf::from(path_str),
+            Ok(path_str) => {
+                serde_json::from_str::<Vec<PathBuf>>(path_str).map_err(anyhow::Error::msg)?
+            }
             Err(_) => {
                 return Ok(HttpResponse::BadRequest().json(json!({
                     "error": "X-Filesystem-Path header is not a valid string"
@@ -515,24 +530,26 @@ async fn delete_filesystem_entry(request: HttpRequest) -> Result<impl Responder>
         }
     };
 
-    // Verify a path exists
-    if !path.exists() {
-        return Ok(HttpResponse::NotFound().json(json!({
-            "error": "Path does not exist"
-        })));
-    }
-
-    // Delete a file or directory
-    if path.is_dir() {
-        if let Err(e) = std::fs::remove_dir_all(&path) {
-            return Ok(HttpResponse::InternalServerError().json(json!({
-                "error": format!("Failed to delete directory: {}", e)
+    for path in paths {
+        // Verify a path exists
+        if !path.exists() {
+            return Ok(HttpResponse::NotFound().json(json!({
+                "error": "Path does not exist"
             })));
         }
-    } else if let Err(e) = std::fs::remove_file(&path) {
-        return Ok(HttpResponse::InternalServerError().json(json!({
-            "error": format!("Failed to delete file: {}", e)
-        })));
+
+        // Delete a file or directory
+        if path.is_dir() {
+            if let Err(e) = std::fs::remove_dir_all(&path) {
+                return Ok(HttpResponse::InternalServerError().json(json!({
+                    "error": format!("Failed to delete directory: {}", e)
+                })));
+            }
+        } else if let Err(e) = std::fs::remove_file(&path) {
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": format!("Failed to delete file: {}", e)
+            })));
+        }
     }
 
     Ok(HttpResponse::Ok().json(json!({
