@@ -13,7 +13,7 @@ use vite_actix::start_vite_server;
 
 mod auth;
 mod helpers;
-mod io;
+pub mod io;
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder()
