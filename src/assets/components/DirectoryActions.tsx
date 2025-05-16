@@ -1,5 +1,5 @@
 import {Alert, Badge, Button, ButtonGroup, CircularProgress, Tooltip} from "@heroui/react";
-import fs from "../ts/filesystem.ts";
+import {FileSystem} from "../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useState} from "react";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
@@ -26,7 +26,7 @@ export function DirectoryActions()
             const file = input.files?.[0];
             if (!file)
                 return;
-            await fs.upload(file, currentPath, bytes =>
+            await FileSystem.upload(file, currentPath, bytes =>
             {
                 setFileUploadData({name: file.name, progress: bytes / file.size});
             });

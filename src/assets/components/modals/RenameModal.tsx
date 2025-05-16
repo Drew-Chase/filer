@@ -2,7 +2,6 @@ import {Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader}
 import {FilesystemEntry} from "../../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";
-import {useFileSystemEntry} from "../../providers/FileSystemEntryProvider.tsx";
 
 type RenameProperties = {
     entry: FilesystemEntry | null;
@@ -11,7 +10,7 @@ type RenameProperties = {
 
 export default function RenameModal(props: RenameProperties)
 {
-    const {moveEntry} = useFileSystemEntry();
+    // const {moveEntry} = useFileSystemEntry();
     const [filename, setFilename] = useState<string>(props.entry?.filename || "");
 
     useEffect(() =>

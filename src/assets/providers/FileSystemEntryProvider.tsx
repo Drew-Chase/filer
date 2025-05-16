@@ -1,9 +1,10 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
-import fs, {FilesystemData, FilesystemEntry} from "../ts/filesystem.ts";
+import {FileSystem, FilesystemData, FilesystemEntry} from "../ts/filesystem.ts";
 import {useLocation, useNavigate} from "react-router-dom";
 import {SortDescriptor} from "@heroui/react";
 import {useAuth} from "./AuthProvider.tsx";
 import RenameModal from "../components/modals/RenameModal.tsx";
+import DeleteModal from "../components/modals/DeleteModal.tsx";
 
 interface FileSystemEntryContextType
 {
@@ -63,14 +64,14 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         if (path === "")
             path = "/";
 
-        // Only fetch data if path actually changed
+        // Only fetch data if the path has actually changed
         if (path !== currentPath)
         {
             setCurrentPath(path);
             setLoading(true);
             setData({parent: null, entries: []});
 
-            fs.getEntries(path)
+            FileSystem.getEntries(path)
                 .then(data =>
                 {
                     setData(data);
@@ -103,7 +104,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         console.log("Refreshing");
         setLoading(true);
         setData({parent: null, entries: []});
-        fs.getEntries(currentPath)
+        FileSystem.getEntries(currentPath)
             .then(data =>
             {
                 setData(data);
@@ -173,7 +174,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
 
         try
         {
-            await fs.copyEntry(sourcePath, destinationPath);
+            await FileSystem.copyEntry(sourcePath, destinationPath);
             // Refresh the current directory to show the changes
             refresh();
         } catch (error)
@@ -189,7 +190,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
 
         try
         {
-            await fs.moveEntry(sourcePath, destinationPath);
+            await FileSystem.moveEntry(sourcePath, destinationPath);
             // Refresh the current directory to show the changes
             refresh();
         } catch (error)
@@ -205,7 +206,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
 
         try
         {
-            await fs.deleteEntry(path);
+            await FileSystem.deleteEntry(path);
             // Refresh the current directory to show the changes
             refresh();
         } catch (error)
@@ -235,41 +236,50 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         setCurrentEntryBeingDeleted(entry);
     }, []);
 
-    const downloadEntry = useCallback(async (entry: FilesystemEntry) => {
+    const downloadEntry = useCallback(async (entry: FilesystemEntry) =>
+    {
         if (!isLoggedIn) return;
-        try {
-            await fs.download(entry);
-        } catch (error) {
+        try
+        {
+            await FileSystem.download(entry);
+        } catch (error)
+        {
             console.error("Error downloading entry:", error);
             throw error;
         }
     }, [isLoggedIn]);
 
-    const downloadSelected = useCallback(async () => {
+    const downloadSelected = useCallback(async () =>
+    {
         if (!isLoggedIn || selectedEntries.size === 0) return;
 
-        try {
+        try
+        {
             // Get the selected entries from the data
-            const entriesToDownload = data.entries.filter(entry => 
+            const entriesToDownload = data.entries.filter(entry =>
                 selectedEntries.has(entry.path)
             );
 
-            if (entriesToDownload.length > 0) {
-                await fs.download(entriesToDownload);
+            if (entriesToDownload.length > 0)
+            {
+                await FileSystem.download(entriesToDownload);
             }
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Error downloading selected entries:", error);
             throw error;
         }
     }, [isLoggedIn, selectedEntries, data.entries]);
 
-    const downloadCurrentDirectory = useCallback(async () => {
+    const downloadCurrentDirectory = useCallback(async () =>
+    {
         if (!isLoggedIn || !currentPath) return;
 
-        try {
+        try
+        {
             // Find the current directory entry
             const currentDirEntry: FilesystemEntry = {
-                filename: currentPath.split('/').filter(Boolean).pop() || 'root',
+                filename: currentPath.split("/").filter(Boolean).pop() || "root",
                 path: currentPath,
                 size: 0,
                 last_modified: new Date(),
@@ -277,8 +287,9 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
                 is_dir: true
             };
 
-            await fs.download(currentDirEntry);
-        } catch (error) {
+            await FileSystem.download(currentDirEntry);
+        } catch (error)
+        {
             console.error("Error downloading current directory:", error);
             throw error;
         }
@@ -308,6 +319,14 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             downloadEntry
         }}>
             <RenameModal entry={currentEntryBeingRenamed} onClose={() => setCurrentEntryBeingRenamed(null)}/>
+            <DeleteModal entry={currentEntryBeingDeleted} onClose={async (confirm) =>
+            {
+                if (confirm)
+                {
+                    await FileSystem.deleteEntry(currentEntryBeingDeleted?.path || "");
+                }
+                setCurrentEntryBeingDeleted(null);
+            }}/>
             {children}
         </FileSystemEntryContext.Provider>
     );

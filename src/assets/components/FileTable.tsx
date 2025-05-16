@@ -1,5 +1,5 @@
 import {Button, Dropdown, DropdownItem, DropdownMenu, DropdownSection, DropdownTrigger, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
-import fs from "../ts/filesystem.ts";
+import {FileSystem} from "../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
 
@@ -42,7 +42,7 @@ export default function FileTable()
             )}
             onSelectionChange={(keys) =>
             {
-                if(keys === "all")
+                if (keys === "all")
                 {
                     setSelectedEntries(new Set(data.entries.map(entry => entry.path)));
                     return;
@@ -99,7 +99,7 @@ export default function FileTable()
                             }
                         </TableCell>
                         <TableCell>{entry.is_dir ? "Directory" : "File"}</TableCell>
-                        <TableCell>{entry.is_dir ? "-" : fs.formatSize(entry.size)}</TableCell>
+                        <TableCell>{entry.is_dir ? "-" : FileSystem.formatSize(entry.size)}</TableCell>
                         <TableCell>{entry.is_dir ? "-" : entry.creation_date.toLocaleDateString()}</TableCell>
                         <TableCell>{entry.is_dir ? "-" : entry.last_modified.toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">

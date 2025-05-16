@@ -26,21 +26,17 @@ export interface FilesystemData
  */
 export class FileSystem
 {
-    /**
-     * Base URL for filesystem API endpoints
-     */
-    private readonly baseUrl: string = "/api/filesystem";
 
     /**
      * Get filesystem entries for the specified path
      * @param path Directory path to browse
      * @returns Promise with the filesystem data
      */
-    public async getEntries(path: string): Promise<FilesystemData>
+    static async getEntries(path: string): Promise<FilesystemData>
     {
         try
         {
-            const response = await fetch(`${this.baseUrl}/`, {
+            const response = await fetch(`/api/filesystem/`, {
                 headers: {
                     "X-Filesystem-Path": decodeURIComponent(path)
                 }
@@ -84,11 +80,11 @@ export class FileSystem
      * @param entry Filesystem entry to download
      * @returns Promise that resolves when download is initiated
      */
-    public async download(entry: FilesystemEntry | FilesystemEntry[]): Promise<void>
+    static async download(entry: FilesystemEntry | FilesystemEntry[]): Promise<void>
     {
         const cwd = window.location.pathname.replace("/files/", "");
-        const url = new URL(`${this.baseUrl}/download`, window.location.href);
-        
+        const url = new URL(`/api/filesystem/download`, window.location.href);
+
         const items = entry instanceof Array ? entry : [entry];
         url.searchParams.set("items", JSON.stringify(items.map(e => e.path.replace(cwd, ""))));
 
@@ -101,7 +97,7 @@ export class FileSystem
     }
 
 
-    async copyEntry(sourcePath: string, destinationPath: string): Promise<void>
+    static async copyEntry(sourcePath: string, destinationPath: string): Promise<void>
     {
         const response = await fetch("/api/filesystem/copy", {
             method: "POST",
@@ -118,7 +114,7 @@ export class FileSystem
         }
     }
 
-    async moveEntry(sourcePath: string, destinationPath: string): Promise<void>
+    static async moveEntry(sourcePath: string, destinationPath: string): Promise<void>
     {
         const response = await fetch("/api/filesystem/move", {
             method: "POST",
@@ -135,7 +131,7 @@ export class FileSystem
         }
     }
 
-    async deleteEntry(path: string): Promise<void>
+    static async deleteEntry(path: string): Promise<void>
     {
         const response = await fetch("/api/filesystem/delete", {
             method: "DELETE",
@@ -156,7 +152,7 @@ export class FileSystem
      * @param bytes Size in bytes
      * @returns Formatted size string (e.g., "2.5 MB")
      */
-    public formatSize(bytes: number): string
+    public static formatSize(bytes: number): string
     {
         if (bytes === 0) return "0 Bytes";
 
@@ -172,11 +168,11 @@ export class FileSystem
      * @param path Path to check
      * @returns Promise indicating if the path exists
      */
-    public async pathExists(path: string): Promise<boolean>
+    public static async pathExists(path: string): Promise<boolean>
     {
         try
         {
-            await this.getEntries(path);
+            await FileSystem.getEntries(path);
             return true;
         } catch (error)
         {
@@ -189,14 +185,14 @@ export class FileSystem
      * @param path Path to the file or directory
      * @returns Promise with the filesystem entry
      */
-    public async getInfo(path: string): Promise<FilesystemEntry | null>
+    public static async getInfo(path: string): Promise<FilesystemEntry | null>
     {
         try
         {
-            const dirname = this.getDirectoryName(path);
-            const filename = this.getFileName(path);
+            const dirname = FileSystem.getDirectoryName(path);
+            const filename = FileSystem.getFileName(path);
 
-            const data = await this.getEntries(dirname);
+            const data = await FileSystem.getEntries(dirname);
             return data.entries.find(entry => entry.filename === filename) || null;
         } catch (error)
         {
@@ -210,7 +206,7 @@ export class FileSystem
      * @param path Full path
      * @returns Directory path
      */
-    private getDirectoryName(path: string): string
+    private static getDirectoryName(path: string): string
     {
         const lastSlashIndex = path.lastIndexOf("/");
         if (lastSlashIndex <= 0) return "/";
@@ -222,21 +218,21 @@ export class FileSystem
      * @param path Full path
      * @returns File name
      */
-    private getFileName(path: string): string
+    private static getFileName(path: string): string
     {
         const lastSlashIndex = path.lastIndexOf("/");
         return path.substring(lastSlashIndex + 1);
     }
 
-    public async upload(file: File, path: string, updateProgress: (bytes: number) => void): Promise<void>
+    public static async upload(file: File, path: string, updateProgress: (bytes: number) => void): Promise<void>
     {
         // Generate unique upload ID
         const uploadId = crypto.randomUUID();
 
         return new Promise<void>((resolve, reject) =>
         {
-            // Set up SSE listener for progress
-            const events = new EventSource(`${this.baseUrl}/upload/progress/${uploadId}`);
+            // Set up the SSE listener for progress
+            const events = new EventSource(`/api/filesystem/upload/progress/${uploadId}`);
 
             events.onmessage = (event) =>
             {
@@ -268,7 +264,7 @@ export class FileSystem
             events.onopen = () =>
             {
                 // Start the upload once connected
-                fetch(`${this.baseUrl}/upload`, {
+                fetch(`/api/filesystem/upload`, {
                     method: "POST",
                     headers: {
                         "X-Filesystem-Path": `${path}/${file.name}+test`,
@@ -291,7 +287,3 @@ export class FileSystem
         });
     }
 }
-
-// Create a default instance for easy import
-const fileSystem = new FileSystem();
-export default fileSystem;
