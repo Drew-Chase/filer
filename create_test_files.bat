@@ -2,6 +2,8 @@
 echo Creating test files with different extensions...
 
 :: Create a test directory
+mkdir target
+cd target
 mkdir test_icons_files
 cd test_icons_files
 
@@ -282,4 +284,3 @@ echo. > test.twig
 echo. > test.blade.php
 
 echo All test files have been created in the test_icons_files directory!
-pause
