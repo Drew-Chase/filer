@@ -355,8 +355,8 @@ export default function FileEntryIcon({entry}: { entry: FilesystemEntry })
         case "stylelintrc":
         case "babelrc":
             return <Icon
-                icon={"codicon:settings-gear"}
-                className={"text-2xl text-gray-500"}
+                icon={"mdi:file-settings-cog"}
+                className={"text-2xl"}
                 data-directory={"false"}
                 aria-hidden="true"
             />;
