@@ -3,6 +3,8 @@ import {FileSystem} from "../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useState} from "react";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
+import {motion} from "framer-motion";
+import TableFind from "./TableFind.tsx";
 
 type FileUploadData = {
     name: string;
@@ -42,7 +44,12 @@ export function DirectoryActions()
 
     return (
         <>
-            <div className="flex flex-row gap-2">
+            <motion.div className="flex flex-row gap-2"
+                        initial={{opacity: 0, y: -20}}
+                        animate={{opacity: 1, y: 0}}
+                        transition={{duration: 1, delay: 1.25, type: "spring", ease: "easeInOut"}}
+            >
+                <TableFind/>
                 <ButtonGroup>
                     {hasSelectedEntries ? (
 
@@ -61,7 +68,7 @@ export function DirectoryActions()
                     <Tooltip content={"Create New File"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:file-plus-fill"}/></Button></Tooltip>
                     <Tooltip content={"Refresh"}><Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={refresh} isLoading={loading}>{!loading && <Icon icon={"mage:refresh"}/>}</Button></Tooltip>
                 </ButtonGroup>
-            </div>
+            </motion.div>
             {fileUploadData && (
                 <Alert
                     className={"absolute w-fit bottom-5 right-5"}
