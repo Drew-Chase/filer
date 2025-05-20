@@ -17,7 +17,7 @@ export default function FileTableBreadcrumbs({paths}: { paths: string[] })
                         navigate(newPath);
                     }}
                 >
-                    {path}
+                    {path === "" || path === "/" ? "Root" : path}
                 </BreadcrumbItem>
             ))}
         </Breadcrumbs>
