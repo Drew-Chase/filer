@@ -2,6 +2,7 @@ import {Button, Dropdown, DropdownItem, DropdownMenu, DropdownSection, DropdownT
 import {FileSystem} from "../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
+import FileEntryIcon from "./FileEntryIcon.tsx";
 
 export default function FileTable()
 {
@@ -92,12 +93,7 @@ export default function FileTable()
                                     {entry.filename}
                                 </Button>
                                 : <div className={"text-tiny flex flex-row items-center px-3 gap-2"} aria-label={`File ${entry.filename}`}>
-                                    <Icon
-                                        icon={entry.is_dir ? "mage:folder-fill" : "mage:file-fill"}
-                                        className={"text-2xl data-[directory=true]:text-blue-500"}
-                                        data-directory={entry.is_dir ? "true" : "false"}
-                                        aria-hidden="true"
-                                    />
+                                    <FileEntryIcon entry={entry} />
                                     {entry.filename}
                                 </div>
                             }
