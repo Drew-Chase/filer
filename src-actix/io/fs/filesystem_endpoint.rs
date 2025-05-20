@@ -4,16 +4,16 @@ use crate::io::fs::download_parameters::DownloadParameters;
 use crate::io::fs::filesystem_data::{FilesystemData, FilesystemEntry};
 use actix_web::http::header::ContentDisposition;
 use actix_web::web::Query;
-use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
 use actix_web_lab::__reexports::futures_util::StreamExt;
 use actix_web_lab::sse::{Data, Event, Sse};
-use archflow::compress::tokio::archive::ZipArchive;
 use archflow::compress::FileOptions;
+use archflow::compress::tokio::archive::ZipArchive;
 use archflow::compression::CompressionMethod;
 use archflow::error::ArchiveError;
 use archflow::types::FileDateTime;
 use log::*;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io;
@@ -24,10 +24,10 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use sysinfo::Disks;
 use tokio::fs::File;
-use tokio::io::duplex;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::mpsc::Sender;
+use tokio::io::duplex;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::Sender;
 use tokio_util::io::ReaderStream;
 
 // At module level
@@ -304,7 +304,7 @@ async fn upload(mut payload: web::Payload, request: HttpRequest) -> impl Respond
         trackers.get(&upload_id).cloned()
     };
 
-    let mut file = match tokio::fs::File::create(&path).await {
+    let mut file = match File::create(&path).await {
         Ok(file) => file,
         Err(_) => {
             return HttpResponse::InternalServerError().json(json!({
@@ -337,7 +337,7 @@ async fn upload(mut payload: web::Payload, request: HttpRequest) -> impl Respond
                             })
                             .to_string(),
                         )))
-                        .await;
+                        .await; 
                 }
             }
             Err(_) => {
