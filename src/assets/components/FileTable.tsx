@@ -3,6 +3,7 @@ import {FileSystem} from "../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
 import FileEntryIcon from "./FileEntryIcon.tsx";
+import FileEntryType from "./FileEntryType.tsx";
 
 export default function FileTable()
 {
@@ -98,7 +99,7 @@ export default function FileTable()
                                 </div>
                             }
                         </TableCell>
-                        <TableCell aria-label="Entry type">{entry.is_dir ? "Directory" : "File"}</TableCell>
+                        <TableCell aria-label="Entry type"><FileEntryType entry={entry} /></TableCell>
                         <TableCell aria-label="File size">{entry.is_dir ? "-" : FileSystem.formatSize(entry.size)}</TableCell>
                         <TableCell aria-label="Creation date">{entry.is_dir ? "-" : entry.creation_date.toLocaleDateString()}</TableCell>
                         <TableCell aria-label="Modification date">{entry.is_dir ? "-" : entry.last_modified.toLocaleDateString()}</TableCell>
