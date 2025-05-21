@@ -1,5 +1,4 @@
 import {Avatar, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Image, Input, Kbd, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@heroui/react";
-import {ThemeSwitchComponent} from "../providers/ThemeProvider.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useAuth} from "../providers/AuthProvider.tsx";
 import logo from "../images/filer-logo.svg";
@@ -39,7 +38,7 @@ export default function Navigation()
                 </NavbarContent>
 
                 <NavbarContent justify="end">
-                    <NavbarItem><ThemeSwitchComponent/></NavbarItem>
+                    {/*<NavbarItem><ThemeSwitchComponent/></NavbarItem>*/}
                     <NavbarItem>
                         <Dropdown classNames={{
                             content: "bg-white/10 backdrop-brightness-[0.5] backdrop-contrast-[1.1] backdrop-blur-sm"
