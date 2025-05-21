@@ -14,7 +14,7 @@
 		"build-frontend": "tsc && vite build",
 		"lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
 		"watch": "cargo watch -x \"run --bin filer\" -C dist -N --why -w ../src-actix/",
-		"build": "npm run \"build-frontend\" && npm run \"build-api\""
+		"build": "pnpm run \"build-frontend\" && pnpm run \"build-api\""
 	},
 	"dependencies": {
 		"@heroui/react": "2.7.5",
