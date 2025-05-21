@@ -10,22 +10,20 @@ export default {
     theme: {
         extend: {},
     },
+    fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+    },
     darkMode: "class",
     plugins: [heroui({
         themes: {
-            light: {
+            dark: {
                 colors: {
                     primary: {
                         DEFAULT: "#ff32cf",
+                        light: "#ff65dd",
+                        dark: "#d600a9",
                         foreground: "#fff",
                     },
-                    secondary: "#151515",
-                    background: "#d4cbf1",
-                }
-            },
-            dark: {
-                colors: {
-                    primary: "#ff32cf",
                     secondary: "#3b82f6",
                     background: "#0c061e",
                 }
