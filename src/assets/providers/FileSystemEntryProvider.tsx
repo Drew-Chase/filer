@@ -42,7 +42,9 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({column: "filename", direction: "ascending"} as SortDescriptor);
     const {isLoggedIn} = useAuth();
     const [currentEntryBeingRenamed, setCurrentEntryBeingRenamed] = useState<FilesystemEntry | null>(null);
+    // @ts-ignore
     const [currentEntryBeingMoved, setCurrentEntryBeingMoved] = useState<FilesystemEntry | null>(null);
+    // @ts-ignore
     const [currentEntryBeingCopied, setCurrentEntryBeingCopied] = useState<FilesystemEntry | null>(null);
     const [currentEntryBeingDeleted, setCurrentEntryBeingDeleted] = useState<FilesystemEntry | null>(null);
     const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
@@ -108,41 +110,34 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             .then(data =>
             {
                 setData(data);
-            }).catch(e =>
-        {
-            console.error("Error getting entries:", e);
-            setData({parent: null, entries: []});
-        })
+            })
+            .catch(e =>
+            {
+                console.error("Error getting entries:", e);
+                setData({parent: null, entries: []});
+            })
             .finally(() =>
             {
                 reactNavigate(`/files${currentPath.startsWith("/") ? currentPath : "/" + currentPath}`);
                 setLoading(false);
+                sortEntries();
             });
     }, [currentPath]);
 
-    useEffect(() =>
+    const sortEntries = useCallback(() =>
     {
         if (!isLoggedIn) return;
         if (data.entries.length === 0) return;
         let column = sortDescriptor.column.toString() as keyof FilesystemEntry;
         data.entries.sort((a, b) =>
         {
-            if (column === "size")
+            // First sort by directory/file
+            if (a.is_dir !== b.is_dir)
             {
-                if (sortDescriptor.direction === "ascending")
-                {
-                    if (a.is_dir)
-                        return -1;
-                    if (b.is_dir)
-                        return 1;
-                } else
-                {
-                    if (a.is_dir)
-                        return 1;
-                    if (b.is_dir)
-                        return -1;
-                }
+                return a.is_dir ? -1 : 1;
             }
+
+            // Then sort by column
             if (column === "filename")
             {
                 switch (sortDescriptor.direction)
@@ -153,6 +148,23 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
                         return b[column].localeCompare(a[column]);
                 }
             }
+
+            if (column === "size")
+            {
+                if (a.is_dir && b.is_dir)
+                {
+                    return 0;
+                }
+                if (sortDescriptor.direction === "ascending")
+                {
+                    return (a[column] || 0) > (b[column] || 0) ? 1 : -1;
+                } else
+                {
+                    return (a[column] || 0) > (b[column] || 0) ? -1 : 1;
+                }
+            }
+
+            if (a[column] == null || b[column] == null) return 0;
             switch (sortDescriptor.direction)
             {
                 case "ascending":
@@ -161,7 +173,12 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
                     return a[column] > b[column] ? -1 : 1;
             }
         });
-    }, [sortDescriptor, currentPath, data]);
+    }, [sortDescriptor, currentPath, data, isLoggedIn]);
+
+    useEffect(() =>
+    {
+        sortEntries();
+    }, [sortDescriptor, currentPath, data, isLoggedIn]);
 
     const search = useCallback(async (_query: string, _currentDirectory: boolean) =>
     {
@@ -200,7 +217,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         }
     }, [isLoggedIn, refresh]);
 
-    const deleteEntry = useCallback(async (path: string|string[]) =>
+    const deleteEntry = useCallback(async (path: string | string[]) =>
     {
         if (!isLoggedIn) return;
 
