@@ -1,3 +1,4 @@
+import {extensionFileTypeMap} from "./file-type-match.ts";
 
 /**
  * Represents a filesystem entry (file or directory)
@@ -10,6 +11,7 @@ export interface FilesystemEntry
     last_modified: Date;
     creation_date: Date;
     is_dir: boolean;
+    file_type?: string;
 }
 
 /**
@@ -64,6 +66,16 @@ export class FileSystem
                     const modifiedSecs = ((entry as any).last_modified.secs_since_epoch || 0) * 1000;
                     const modifiedNanos = ((entry as any).last_modified.nanos_since_epoch || 0) / 1_000_000;
                     entry.last_modified = new Date(modifiedSecs + modifiedNanos);
+                }
+
+                if (entry.is_dir)
+                {
+                    entry.file_type = "Folder";
+                } else
+                {
+                    const extensions = entry.filename.toLowerCase().trim().split(".").slice(1);
+                    let extension = extensions.length > 0 ? extensions.join(".") : "";
+                    entry.file_type = extensionFileTypeMap.find(e => e.extensions.includes(extension))?.description ?? "File";
                 }
 
                 return entry;
@@ -132,7 +144,7 @@ export class FileSystem
         }
     }
 
-    static async deleteEntry(path: string|string[]): Promise<void>
+    static async deleteEntry(path: string | string[]): Promise<void>
     {
         const response = await fetch("/api/filesystem/", {
             method: "DELETE",
