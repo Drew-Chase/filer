@@ -1,88 +1,85 @@
-import {Alert, Badge, Button, ButtonGroup, CircularProgress, Tooltip} from "@heroui/react";
-import {FileSystem} from "../ts/filesystem.ts";
-import {Icon} from "@iconify-icon/react";
-import {useState} from "react";
-import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
 import {motion} from "framer-motion";
-import TableFind from "./TableFind.tsx";
-
-type FileUploadData = {
-    name: string;
-    progress: number;
-}
+import {useState} from "react";
+import {Icon} from "@iconify-icon/react";
+import {cn} from "@heroui/react";
 
 export function DirectoryActions()
 {
-    const {currentPath, refresh, loading, downloadCurrentDirectory, selectedEntries, downloadSelected} = useFileSystemEntry();
-    const [fileUploadData, setFileUploadData] = useState<FileUploadData | null>(null);
-    if (currentPath === null) return <></>;
-
-    const handleUpload = async () =>
-    {
-        const input = document.createElement("input");
-        input.type = "file";
-        input.multiple = false;
-        input.click();
-        input.onchange = async () =>
-        {
-            const file = input.files?.[0];
-            if (!file)
-                return;
-            await FileSystem.upload(file, currentPath, bytes =>
-            {
-                setFileUploadData({name: file.name, progress: bytes / file.size});
-            });
-            setTimeout(() =>
-            {
-                setFileUploadData(null);
-            }, 5 * 1000);
-        };
-    };
-
-    // Check if there are selected entries
-    const hasSelectedEntries = selectedEntries.size > 0;
-
+    const [count, setCount] = useState(0);
     return (
-        <>
-            <motion.div className="flex flex-row gap-2"
-                        initial={{opacity: 0, y: -20}}
-                        animate={{opacity: 1, y: 0}}
-                        transition={{duration: 1, delay: 1.25, type: "spring", ease: "easeInOut"}}
-            >
-                <TableFind/>
-                <ButtonGroup>
-                    {hasSelectedEntries ? (
+        <motion.div
+        >
 
-                        <Badge content={selectedEntries.size}>
-                            <Tooltip content={"Archive and Download"}>
-                                <Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={downloadSelected}><Icon icon={"mage:archive-fill"}/></Button>
-                            </Tooltip>
-                        </Badge>
-                    ) : (
-                        <Tooltip content={"Archive and Download"}>
-                            <Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={downloadCurrentDirectory}><Icon icon={"mage:archive-fill"}/></Button>
-                        </Tooltip>
-                    )}
-                    <Tooltip content={"Upload File"}><Button variant={"ghost"} size={"sm"} className={"text-xl"} onPress={handleUpload}><Icon icon={"mage:file-upload-fill"}/></Button></Tooltip>
-                    <Tooltip content={"Create New Directory"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:folder-plus-fill"}/></Button></Tooltip>
-                    <Tooltip content={"Create New File"}><Button size={"sm"} variant={"ghost"} className={"text-xl"}><Icon icon={"mage:file-plus-fill"}/></Button></Tooltip>
-                    <Tooltip content={"Refresh"}><Button size={"sm"} variant={"ghost"} className={"text-xl"} onPress={refresh} isLoading={loading}>{!loading && <Icon icon={"mage:refresh"}/>}</Button></Tooltip>
-                </ButtonGroup>
-            </motion.div>
-            {fileUploadData && (
-                <Alert
-                    className={"absolute w-fit bottom-5 right-5"}
-                    classNames={{base: "bg-primary/10 backdrop-blur-sm"}}
-                    variant={"solid"}
-                    icon={<CircularProgress minValue={0} maxValue={1} value={fileUploadData.progress} color={"primary"}/>}
-                    title={
-                        <Tooltip content={`Uploading: ${fileUploadData.name}`} delay={1000}>
-                            <p className={"max-w-[250px] truncate"}>Uploading: {fileUploadData.name}</p>
-                        </Tooltip>
+            <DirectoryActionButton
+                count={count}
+                icon={"mage:file-download-fill"}
+                tooltip={""}
+                onPress={() =>
+                {
+                    setCount(count + 1);
+                }}
+            />
+
+        </motion.div>
+    );
+}
+
+type DirectoryActionButtonProps = {
+    count: number;
+    isPositiveCountRequired?: boolean;
+    onPress: () => void;
+    icon: string;
+    tooltip: string;
+    showCount?: boolean;
+}
+
+function DirectoryActionButton(props: DirectoryActionButtonProps)
+{
+    const [id] = useState(`directory-action-button-${Math.random().toString(36).substring(2, 15)}`);
+    const [hovering, setHovering] = useState(false);
+    const isPositiveCountRequired = props.isPositiveCountRequired ?? false;
+    const showCount = props.showCount ?? true;
+    if (props.count === 0 && isPositiveCountRequired) return null;
+    return (
+        <motion.div
+            id={id}
+            className={
+                cn(
+                    "flex items-center justify-center aspect-square w-10 h-10 rounded-full relative",
+                    "bg-white text-black transition-colors duration-200",
+                    "data-[hover=true]:bg-gray-300 data-[hover=true]:text-black cursor-pointer"
+                )
+            }
+            initial={{opacity: 0, y: -10}}
+            animate={{opacity: 1, y: 0}}
+            transition={{duration: 0.2, delay: 0, type: "spring", ease: "easeInOut"}}
+            onMouseEnter={() => setHovering(true)}
+            onMouseLeave={() => setHovering(false)}
+            onClick={props.onPress}
+            data-hover={hovering}
+        >
+            {showCount && (
+                <motion.div
+                    key={props.count}
+                    initial={{scale: 1, y: -5}}
+                    animate={{scale: 1, y: 0}}
+                    transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 10
+                    }}
+                    className={
+                        cn(
+                            "absolute top-0 right-0 -mt-2 -mr-2 z-20 p-1 aspect-square w-6 h-6",
+                            "bg-white text-black text-xs rounded-full flex items-center justify-center"
+                        )
                     }
-                    description={`Uploading file ${(fileUploadData.progress * 100).toFixed(2)}%...`}
-                />
+                    data-hover={hovering}
+                >
+                    {props.count}
+                </motion.div>
             )}
-        </>
+            <Icon icon={props.icon}/>
+        </motion.div>
     );
 }
