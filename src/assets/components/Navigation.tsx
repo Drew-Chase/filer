@@ -17,7 +17,10 @@ export default function Navigation()
             animate={{opacity: 1, y: 0}}
             transition={{duration: .5, delay: 0, type: "spring", ease: "easeInOut"}}
         >
-            <Navbar maxWidth={"full"}>
+            <Navbar
+                maxWidth={"full"}
+                className={"bg-transparent backdrop-blur-none backdrop-brightness-100 backdrop-contrast-100 backdrop-saturate-100"}
+            >
                 <NavbarContent>
                     <NavbarBrand>
                         <Link href={"/files/"} className="font-bold text-inherit flex flex-row items-center gap-2 text-2xl"><Image src={logo} width={32}/></Link>
