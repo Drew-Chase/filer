@@ -4,11 +4,11 @@ use crate::io::fs::download_parameters::DownloadParameters;
 use crate::io::fs::filesystem_data::{FilesystemData, FilesystemEntry};
 use actix_web::http::header::ContentDisposition;
 use actix_web::web::Query;
-use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_lab::__reexports::futures_util::StreamExt;
 use actix_web_lab::sse::{Data, Event, Sse};
-use archflow::compress::FileOptions;
 use archflow::compress::tokio::archive::ZipArchive;
+use archflow::compress::FileOptions;
 use archflow::compression::CompressionMethod;
 use archflow::error::ArchiveError;
 use archflow::types::FileDateTime;
@@ -24,10 +24,10 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use sysinfo::Disks;
 use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 use tokio::io::duplex;
-use tokio::sync::Mutex;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 use tokio_util::io::ReaderStream;
 
 // At module level
@@ -337,7 +337,7 @@ async fn upload(mut payload: web::Payload, request: HttpRequest) -> impl Respond
                             })
                             .to_string(),
                         )))
-                        .await; 
+                        .await;
                 }
             }
             Err(_) => {
