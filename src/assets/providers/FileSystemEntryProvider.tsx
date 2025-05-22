@@ -5,6 +5,8 @@ import {SortDescriptor} from "@heroui/react";
 import {useAuth} from "./AuthProvider.tsx";
 import RenameModal from "../components/modals/RenameModal.tsx";
 import DeleteModal from "../components/modals/DeleteModal.tsx";
+import UploadEntryModal from "../components/modals/UploadEntryModal.tsx";
+import $ from "jquery";
 
 interface FileSystemEntryContextType
 {
@@ -17,14 +19,17 @@ interface FileSystemEntryContextType
     onSortChange: (sortDescriptor: SortDescriptor) => void;
     refresh: () => void;
     openRenameModal: (entry: FilesystemEntry) => void;
-    openCopyModal: (entry: FilesystemEntry) => void;
-    openMoveModal: (entry: FilesystemEntry) => void;
-    openDeleteModal: (entry: FilesystemEntry) => void;
+    openCopyModal: (entry: FilesystemEntry[]) => void;
+    openMoveModal: (entry: FilesystemEntry[]) => void;
+    openDeleteModal: (entry: FilesystemEntry[]) => void;
+    askDeleteSelectedEntries: () => void;
+    askCopyMoveSelectedEntries: () => void;
+    askUploadEntry: () => void;
     copyEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
     moveEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
-    deleteEntry: (path: string) => Promise<void>;
-    selectedEntries: Set<string>;
-    setSelectedEntries: (keys: Set<string>) => void;
+    deleteEntry: (paths: string[]) => Promise<void>;
+    selectedEntries: Set<FilesystemEntry>;
+    setSelectedEntries: (keys: Set<FilesystemEntry>) => void;
     downloadSelected: () => Promise<void>;
     downloadCurrentDirectory: () => Promise<void>;
     downloadEntry: (entry: FilesystemEntry) => Promise<void>;
@@ -43,11 +48,12 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     const {isLoggedIn} = useAuth();
     const [currentEntryBeingRenamed, setCurrentEntryBeingRenamed] = useState<FilesystemEntry | null>(null);
     // @ts-ignore
-    const [currentEntryBeingMoved, setCurrentEntryBeingMoved] = useState<FilesystemEntry | null>(null);
+    const [currentEntryBeingMoved, setCurrentEntryBeingMoved] = useState<FilesystemEntry[] | null>(null);
     // @ts-ignore
-    const [currentEntryBeingCopied, setCurrentEntryBeingCopied] = useState<FilesystemEntry | null>(null);
-    const [currentEntryBeingDeleted, setCurrentEntryBeingDeleted] = useState<FilesystemEntry | null>(null);
-    const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
+    const [currentEntryBeingCopied, setCurrentEntryBeingCopied] = useState<FilesystemEntry[] | null>(null);
+    const [currentEntryBeingDeleted, setCurrentEntryBeingDeleted] = useState<FilesystemEntry[] | null>(null);
+    const [selectedEntries, setSelectedEntries] = useState<Set<FilesystemEntry>>(new Set());
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
 
 // Modify the useEffect hook that watches pathname
@@ -87,10 +93,29 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
                 {
                     setLoading(false);
                 });
+
+            const body = $("html").off("dragenter").off("drop")
+                .on("dragenter", e =>
+                {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    askUploadEntry();
+                }).on("drop", e =>
+                {
+                    e.preventDefault();
+                    e.stopPropagation();
+                })
+
+            ;
+            return () =>
+            {
+                body.off("dragenter").off("drop");
+            };
+
         }
     }, [pathname, isLoggedIn]);
 
-// Modify the navigate function to only update the route
+    // Modify the navigate function to only update the route
     const navigate = useCallback((path: string) =>
     {
         if (!isLoggedIn) return;
@@ -182,7 +207,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
 
     const search = useCallback(async (_query: string, _currentDirectory: boolean) =>
     {
-
+        // TODO: Implement global searching
     }, []);
 
     const copyEntry = useCallback(async (sourcePath: string, destinationPath: string) =>
@@ -217,7 +242,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         }
     }, [isLoggedIn, refresh]);
 
-    const deleteEntry = useCallback(async (path: string | string[]) =>
+    const deleteEntry = useCallback(async (path: string[]) =>
     {
         if (!isLoggedIn) return;
 
@@ -237,17 +262,17 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         setCurrentEntryBeingRenamed(entry);
     }, []);
 
-    const openCopyModal = useCallback((entry: FilesystemEntry) =>
+    const openCopyModal = useCallback((entry: FilesystemEntry[]) =>
     {
         setCurrentEntryBeingCopied(entry);
     }, []);
 
-    const openMoveModal = useCallback((entry: FilesystemEntry) =>
+    const openMoveModal = useCallback((entry: FilesystemEntry[]) =>
     {
         setCurrentEntryBeingMoved(entry);
     }, []);
 
-    const openDeleteModal = useCallback((entry: FilesystemEntry) =>
+    const openDeleteModal = useCallback((entry: FilesystemEntry[]) =>
     {
         setCurrentEntryBeingDeleted(entry);
     }, []);
@@ -273,7 +298,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         {
             // Get the selected entries from the data
             const entriesToDownload = data.entries.filter(entry =>
-                selectedEntries.has(entry.path)
+                selectedEntries.has(entry)
             );
 
             if (entriesToDownload.length > 0)
@@ -311,6 +336,18 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         }
     }, [isLoggedIn, currentPath]);
 
+
+    const askDeleteSelectedEntries = useCallback(() =>
+    {
+        setCurrentEntryBeingDeleted([...selectedEntries]);
+    }, [selectedEntries]);
+
+    const askCopyMoveSelectedEntries = useCallback(() =>
+    {
+    }, [selectedEntries]);
+    const askUploadEntry = useCallback(() => setIsUploadModalOpen(true), []);
+
+
     return (
         <FileSystemEntryContext.Provider value={{
             currentPath,
@@ -332,10 +369,14 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             setSelectedEntries,
             downloadSelected,
             downloadCurrentDirectory,
-            downloadEntry
+            downloadEntry,
+            askDeleteSelectedEntries,
+            askCopyMoveSelectedEntries,
+            askUploadEntry
         }}>
             <RenameModal entry={currentEntryBeingRenamed} onClose={() => setCurrentEntryBeingRenamed(null)}/>
-            <DeleteModal entry={currentEntryBeingDeleted} onClose={() => setCurrentEntryBeingDeleted(null)}/>
+            <DeleteModal entries={currentEntryBeingDeleted} onClose={() => setCurrentEntryBeingDeleted(null)}/>
+            <UploadEntryModal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)}/>
             {children}
         </FileSystemEntryContext.Provider>
     );
