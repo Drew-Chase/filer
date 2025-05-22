@@ -11,7 +11,8 @@ export function DirectoryActions()
         downloadSelected,
         askDeleteSelectedEntries,
         refresh,
-        askUploadEntry
+        askUploadEntry,
+        askCreateNewFileEntry
     } = useFileSystemEntry();
 
     // Add a state to track if the parent container is being hovered
@@ -25,7 +26,7 @@ export function DirectoryActions()
             onMouseLeave={() => setIsHovering(false)}
             onDoubleClick={() =>
             {
-                if (sessionStorage.getItem("alwaysShowDirectoryActionNotification") != null)
+                if (sessionStorage.getItem("alwaysShowDirectoryActionNotification") == null)
                 {
                     sessionStorage.setItem("alwaysShowDirectoryActionNotification", "true");
                     addToast({
@@ -82,7 +83,7 @@ export function DirectoryActions()
             <DirectoryActionButton
                 icon={"mage:file-plus-fill"}
                 tooltip={`Create a file or directory`}
-                onPress={downloadSelected}
+                onPress={askCreateNewFileEntry}
                 isPositiveCountRequired={false}
                 showCount={false}
                 isVisible={alwaysShow || isHovering}
