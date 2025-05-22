@@ -13,7 +13,14 @@ export default function DeleteModal(props: DeleteProperties)
     const [isLoading, setIsLoading] = useState(false);
     const {deleteEntry} = useFileSystemEntry();
     return (
-        <Modal isOpen={props.entries !== null} onClose={props.onClose} backdrop={"blur"}>
+        <Modal
+            isOpen={props.entries !== null}
+            onClose={props.onClose}
+            backdrop={"blur"}
+            classNames={{
+                base: "bg-gradient-to-tr from-[#1d0a3b] to-[#2f115c]"
+            }}
+        >
             <ModalContent>
                 <ModalHeader>Delete {props.entries?.length} Items</ModalHeader>
                 <ModalBody className={"flex flex-row"}>
@@ -27,7 +34,7 @@ export default function DeleteModal(props: DeleteProperties)
                     </p>
                 </ModalBody>
                 <ModalFooter>
-                    <Button isLoading={isLoading} onPress={async () =>
+                    <Button isLoading={isLoading} color={"secondary"} onPress={async () =>
                     {
                         setIsLoading(true);
                         if (props.entries === null)
