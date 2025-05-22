@@ -1,10 +1,10 @@
-import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {addToast, Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
 import {FilesystemEntry} from "../../ts/filesystem.ts";
 import {useState} from "react";
 import {useFileSystemEntry} from "../../providers/FileSystemEntryProvider.tsx";
 
 type DeleteProperties = {
-    entry: FilesystemEntry | null;
+    entries: FilesystemEntry[] | null;
     onClose: () => void;
 };
 
@@ -13,19 +13,30 @@ export default function DeleteModal(props: DeleteProperties)
     const [isLoading, setIsLoading] = useState(false);
     const {deleteEntry} = useFileSystemEntry();
     return (
-        <Modal isOpen={props.entry !== null} onClose={props.onClose} backdrop={"blur"}>
+        <Modal isOpen={props.entries !== null} onClose={props.onClose} backdrop={"blur"}>
             <ModalContent>
-                <ModalHeader>Delete</ModalHeader>
+                <ModalHeader>Delete {props.entries?.length} Items</ModalHeader>
                 <ModalBody className={"flex flex-row"}>
                     <p>
-                        Are you sure you want to delete <span className={"font-bold italic inline"}>{props.entry?.filename}</span> and all of its contents? This action cannot be undone.
+                        Are you sure you want to delete
+                        {props.entries?.length === 1 ?
+                            <span className={"font-bold italic inline mx-1"}>{props.entries[0].filename}</span> :
+                            <span className={"font-bold italic inline mx-1"}>{props.entries?.length} Entries</span>
+                        }
+                        and all of their contents? This action cannot be undone.
                     </p>
                 </ModalBody>
                 <ModalFooter>
                     <Button isLoading={isLoading} onPress={async () =>
                     {
                         setIsLoading(true);
-                        await deleteEntry(props.entry?.path || "");
+                        if (props.entries === null)
+                            addToast({
+                                title: "Error",
+                                description: "No entries selected"
+                            });
+                        else
+                            await deleteEntry(props.entries.map(i => i.path));
                         props.onClose();
                         setIsLoading(false);
                     }}>Delete</Button>
