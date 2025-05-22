@@ -2,7 +2,7 @@ use crate::auth::auth_middleware::Authentication;
 use crate::helpers::http_error::Result;
 use crate::io::fs::download_parameters::DownloadParameters;
 use crate::io::fs::filesystem_data::{FilesystemData, FilesystemEntry};
-use actix_web::http::header::ContentDisposition;
+use actix_web::http::header::{ContentDisposition, HeaderValue};
 use actix_web::web::Query;
 use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_lab::__reexports::futures_util::StreamExt;
@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use std::time::Duration;
 use sysinfo::Disks;
+use tokio::fs;
 use tokio::fs::File;
 use tokio::io::duplex;
 use tokio::io::AsyncWriteExt;
@@ -558,6 +559,35 @@ async fn delete_filesystem_entry(request: HttpRequest) -> Result<impl Responder>
     })))
 }
 
+#[post("/new")]
+async fn new_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
+    let file_path = request
+        .headers()
+        .get("X-Filesystem-Path")
+        .and_then(|h| h.to_str().ok())
+        .map(PathBuf::from)
+        .ok_or_else(|| anyhow::anyhow!("X-Filesystem-Path header is missing"))?;
+
+    let is_directory = request
+        .headers()
+        .get("X-Is-Directory")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s == "true")
+        .unwrap_or(false);
+
+    if is_directory {
+        fs::create_dir_all(file_path)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+    } else {
+        File::create(file_path)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+    }
+
+    Ok(HttpResponse::Ok().finish())
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/filesystem")
@@ -569,6 +599,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(upload_progress)
             .service(copy_filesystem_entry)
             .service(move_filesystem_entry)
-            .service(delete_filesystem_entry),
+            .service(delete_filesystem_entry)
+            .service(new_filesystem_entry),
     );
 }
