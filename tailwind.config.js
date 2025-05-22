@@ -24,7 +24,10 @@ export default {
                         dark: "#d600a9",
                         foreground: "#fff",
                     },
-                    secondary: "#3b82f6",
+                    secondary: {
+                        DEFAULT: "#fff",
+                        foreground: "#000",
+                    },
                     background: "#0c061e",
                 }
             },
