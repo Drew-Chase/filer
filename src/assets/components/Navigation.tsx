@@ -43,11 +43,17 @@ export default function Navigation()
                 <NavbarContent justify="end">
                     {/*<NavbarItem><ThemeSwitchComponent/></NavbarItem>*/}
                     <NavbarItem>
-                        <Dropdown classNames={{
-                            content: "bg-white/10 backdrop-brightness-[0.5] backdrop-contrast-[1.1] backdrop-blur-sm"
-                        }}>
+                        <Dropdown
+                            classNames={{
+                                content: "bg-[#2f115c]/50 outline-primary outline-1 backdrop-brightness-[.5] backdrop-saturate-[1.5] backdrop-blur-lg"
+                            }}
+                        >
                             <DropdownTrigger><Avatar name={username.toUpperCase()[0]} className={"cursor-pointer"}/></DropdownTrigger>
-                            <DropdownMenu>
+                            <DropdownMenu
+                                itemClasses={{
+                                    base: "data-[hover=true]:bg-white/10 data-[selectable=true]:focus:bg-white/50"
+                                }}
+                            >
                                 <DropdownItem key={"profile"} startContent={<Icon icon={"mage:user-fill"}/>}>Profile</DropdownItem>
                                 <DropdownItem key={"settings"} startContent={<Icon icon={"mage:settings-fill"}/>}>Settings</DropdownItem>
                                 <DropdownItem key={"help"} startContent={<Icon icon={"mage:github"}/>} as={Link} href={"https://github.com/drew-chase/filer/issues"} target={"_blank"}>Feedback / Help</DropdownItem>
