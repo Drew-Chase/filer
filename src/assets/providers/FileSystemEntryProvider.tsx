@@ -85,7 +85,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             FileSystem.getEntries(path)
                 .then(data =>
                 {
-                    setData(data);
+                    sortEntries(data);
                 })
                 .catch(e =>
                 {
@@ -137,7 +137,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         FileSystem.getEntries(currentPath)
             .then(data =>
             {
-                setData(data);
+                sortEntries(data);
             })
             .catch(e =>
             {
@@ -148,16 +148,15 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             {
                 reactNavigate(`/files${currentPath.startsWith("/") ? currentPath : "/" + currentPath}`);
                 setLoading(false);
-                sortEntries();
             });
     }, [currentPath]);
 
-    const sortEntries = useCallback(() =>
+    const sortEntries = useCallback((fsdata: FilesystemData = data) =>
     {
         if (!isLoggedIn) return;
-        if (data.entries.length === 0) return;
+        if (fsdata.entries.length === 0) return;
         let column = sortDescriptor.column.toString() as keyof FilesystemEntry;
-        data.entries.sort((a, b) =>
+        fsdata.entries.sort((a, b) =>
         {
             // First sort by directory/file
             if (a.is_dir !== b.is_dir)
@@ -201,12 +200,13 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
                     return a[column] > b[column] ? -1 : 1;
             }
         });
+        setData({...fsdata});
     }, [sortDescriptor, currentPath, data, isLoggedIn]);
 
     useEffect(() =>
     {
         sortEntries();
-    }, [sortDescriptor, currentPath, data, isLoggedIn]);
+    }, [sortDescriptor]);
 
     const search = useCallback(async (_query: string, _currentDirectory: boolean) =>
     {
