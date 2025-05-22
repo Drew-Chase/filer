@@ -1,4 +1,4 @@
-import {Button, cn, Dropdown, DropdownItem, DropdownMenu, DropdownSection, DropdownTrigger, Pagination, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Button, Dropdown, DropdownItem, DropdownMenu, DropdownSection, DropdownTrigger, Pagination, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {FileSystem, FilesystemEntry} from "../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
@@ -32,7 +32,7 @@ export default function FileTable()
     {
         setPageItems(data.entries.slice((currentPage - 1) * MAX_ITEMS_PER_PAGE, currentPage * MAX_ITEMS_PER_PAGE));
         setSelectedEntries(new Set());
-    }, [data, currentPage]);
+    }, [data, currentPage, sortDescriptor]);
 
     return (
         <>
@@ -44,7 +44,7 @@ export default function FileTable()
                 classNames={{
                     base: "w-full max-h-[calc(100dvh_-_180px)] overflow-y-auto",
                     th: "!bg-white/10 backdrop-contrast-105 backdrop-brightness-75 backdrop-blur-sm",
-                    td: cn("group-aria-[selected=false]/tr:group-data-[hover=true]/tr:before:bg-white/10 before:bg-white/10 before:transition-all before:duration-200")
+                    td: "group-aria-[selected=false]/tr:group-data-[hover=true]/tr:before:bg-white/10 before:bg-white/10 before:transition-all before:duration-200"
                 }}
                 sortDescriptor={sortDescriptor}
                 onSortChange={onSortChange}
