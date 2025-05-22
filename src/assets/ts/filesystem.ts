@@ -299,4 +299,20 @@ export class FileSystem
             };
         });
     }
+
+    static async createEntry(filename: string, cwd: string, isDirectory: boolean)
+    {
+        const response = await fetch("/api/filesystem/new", {
+            headers: {
+                "X-Filesystem-Path": `${cwd}/${filename}`,
+                "X-Is-Directory": isDirectory.toString()
+            },
+            method: "POST"
+        });
+        if (!response.ok)
+        {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to create: ${response.statusText}`);
+        }
+    }
 }
