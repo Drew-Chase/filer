@@ -24,7 +24,14 @@ export default function RenameModal(props: RenameProperties)
     }, [props.entry]);
 
     return (
-        <Modal isOpen={props.entry !== null} onClose={props.onClose}>
+        <Modal
+            isOpen={props.entry !== null}
+            onClose={props.onClose}
+            classNames={{
+                base: "bg-gradient-to-tr from-[#1d0a3b] to-[#2f115c]"
+            }}
+            backdrop={"blur"}
+        >
             <ModalContent>
                 {onClose => (
                     <>
@@ -44,6 +51,7 @@ export default function RenameModal(props: RenameProperties)
                         </ModalBody>
                         <ModalFooter>
                             <Button
+                                color={"secondary"}
                                 isLoading={isLoading}
                                 onPress={async () =>
                                 {
