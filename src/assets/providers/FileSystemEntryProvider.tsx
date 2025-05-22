@@ -7,6 +7,7 @@ import RenameModal from "../components/modals/RenameModal.tsx";
 import DeleteModal from "../components/modals/DeleteModal.tsx";
 import UploadEntryModal from "../components/modals/UploadEntryModal.tsx";
 import $ from "jquery";
+import NewFileEntryModal from "../components/modals/NewFileEntryModal.tsx";
 
 interface FileSystemEntryContextType
 {
@@ -24,6 +25,7 @@ interface FileSystemEntryContextType
     openDeleteModal: (entry: FilesystemEntry[]) => void;
     askDeleteSelectedEntries: () => void;
     askCopyMoveSelectedEntries: () => void;
+    askCreateNewFileEntry: () => void;
     askUploadEntry: () => void;
     copyEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
     moveEntry: (sourcePath: string, destinationPath: string) => Promise<void>;
@@ -54,6 +56,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     const [currentEntryBeingDeleted, setCurrentEntryBeingDeleted] = useState<FilesystemEntry[] | null>(null);
     const [selectedEntries, setSelectedEntries] = useState<Set<FilesystemEntry>>(new Set());
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [isNewFileEntryModalOpen, setIsNewFileEntryModalOpen] = useState(false);
 
 
 // Modify the useEffect hook that watches pathname
@@ -346,6 +349,10 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     {
     }, [selectedEntries]);
     const askUploadEntry = useCallback(() => setIsUploadModalOpen(true), []);
+    const askCreateNewFileEntry = useCallback(() =>
+    {
+        setIsNewFileEntryModalOpen(true);
+    }, []);
 
 
     return (
@@ -372,11 +379,13 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             downloadEntry,
             askDeleteSelectedEntries,
             askCopyMoveSelectedEntries,
-            askUploadEntry
+            askUploadEntry,
+            askCreateNewFileEntry
         }}>
             <RenameModal entry={currentEntryBeingRenamed} onClose={() => setCurrentEntryBeingRenamed(null)}/>
             <DeleteModal entries={currentEntryBeingDeleted} onClose={() => setCurrentEntryBeingDeleted(null)}/>
             <UploadEntryModal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)}/>
+            <NewFileEntryModal isOpen={isNewFileEntryModalOpen} onClose={() => setIsNewFileEntryModalOpen(false)}/>
             {children}
         </FileSystemEntryContext.Provider>
     );
