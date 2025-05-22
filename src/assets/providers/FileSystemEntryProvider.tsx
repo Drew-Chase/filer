@@ -35,6 +35,9 @@ interface FileSystemEntryContextType
     downloadSelected: () => Promise<void>;
     downloadCurrentDirectory: () => Promise<void>;
     downloadEntry: (entry: FilesystemEntry) => Promise<void>;
+    currentDirectoryFilter: string;
+    onCurrentDirectoryFilterChange: (filter: string) => void;
+
 }
 
 const FileSystemEntryContext = createContext<FileSystemEntryContextType | undefined>(undefined);
@@ -57,6 +60,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     const [selectedEntries, setSelectedEntries] = useState<Set<FilesystemEntry>>(new Set());
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [isNewFileEntryModalOpen, setIsNewFileEntryModalOpen] = useState(false);
+    const [currentDirectoryFilter, setCurrentDirectoryFilter] = useState("");
 
 
 // Modify the useEffect hook that watches pathname
@@ -380,7 +384,9 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             askDeleteSelectedEntries,
             askCopyMoveSelectedEntries,
             askUploadEntry,
-            askCreateNewFileEntry
+            askCreateNewFileEntry,
+            currentDirectoryFilter,
+            onCurrentDirectoryFilterChange: setCurrentDirectoryFilter,
         }}>
             <RenameModal entry={currentEntryBeingRenamed} onClose={() => setCurrentEntryBeingRenamed(null)}/>
             <DeleteModal entries={currentEntryBeingDeleted} onClose={() => setCurrentEntryBeingDeleted(null)}/>

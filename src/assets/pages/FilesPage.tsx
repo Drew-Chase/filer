@@ -3,6 +3,7 @@ import FileTableBreadcrumbs from "../components/FileTableBreadcrumbs.tsx";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
 import {DirectoryActions} from "../components/DirectoryActions.tsx";
 import {motion} from "framer-motion";
+import TableFind from "../components/TableFind.tsx";
 
 
 export default function FilesPage()
@@ -19,6 +20,7 @@ export default function FilesPage()
                 <div className={"flex flex-col w-full gap-4"}>
                     <div className={"flex flex-row gap-4 items-center justify-between"}>
                         <FileTableBreadcrumbs paths={decodeURIComponent(currentPath).split("/")}/>
+                        <TableFind />
                         <DirectoryActions/>
                     </div>
 

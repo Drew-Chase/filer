@@ -20,7 +20,8 @@ export default function FileTable()
         openDeleteModal,
         downloadEntry,
         selectedEntries,
-        setSelectedEntries
+        setSelectedEntries,
+        currentDirectoryFilter
     } = useFileSystemEntry();
 
 
@@ -30,9 +31,9 @@ export default function FileTable()
 
     useEffect(() =>
     {
-        setPageItems(data.entries.slice((currentPage - 1) * MAX_ITEMS_PER_PAGE, currentPage * MAX_ITEMS_PER_PAGE));
+        setPageItems(data.entries.filter(i => i.filename.toLowerCase().includes(currentDirectoryFilter.toLowerCase())).slice((currentPage - 1) * MAX_ITEMS_PER_PAGE, currentPage * MAX_ITEMS_PER_PAGE));
         setSelectedEntries(new Set());
-    }, [data, currentPage, sortDescriptor]);
+    }, [data, currentPage, sortDescriptor, currentDirectoryFilter]);
 
     return (
         <>
