@@ -280,7 +280,7 @@ export class FileSystem
                 fetch(`/api/filesystem/upload`, {
                     method: "POST",
                     headers: {
-                        "X-Filesystem-Path": `${path}/${file.name}+test`,
+                        "X-Filesystem-Path": `${path}/${file.name}`,
                         "X-Upload-ID": uploadId
                     },
                     body: file
