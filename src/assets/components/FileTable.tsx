@@ -43,7 +43,7 @@ export default function FileTable()
                 className={"w-full"}
                 classNames={{
                     base: "w-full max-h-[calc(100dvh_-_180px)] overflow-y-auto",
-                    th: "!bg-white/10 backdrop-contrast-105 backdrop-brightness-75 backdrop-blur-sm",
+                    th: "!bg-white/10 backdrop-contrast-105 backdrop-brightness-75 backdrop-blur-lg",
                     td: "group-aria-[selected=false]/tr:group-data-[hover=true]/tr:before:bg-white/10 before:bg-white/10 before:transition-all before:duration-200"
                 }}
                 sortDescriptor={sortDescriptor}
@@ -83,7 +83,7 @@ export default function FileTable()
                     <TableColumn key={"is_dir"} className="min-w-32" allowsSorting aria-label="Type column">Type</TableColumn>
                     <TableColumn key={"size"} className="min-w-32" allowsSorting aria-label="Size column">Size</TableColumn>
                     <TableColumn key={"creation_date"} className="min-w-32" allowsSorting aria-label="Creation date column">Creation</TableColumn>
-                    <TableColumn key={"modification_date"} className="min-w-32" allowsSorting aria-label="Modification date column">Modification</TableColumn>
+                    <TableColumn key={"last_modified"} className="min-w-32" allowsSorting aria-label="Modification date column">Modification</TableColumn>
                     <TableColumn className="text-right" aria-label="Actions column">Actions</TableColumn>
                 </TableHeader>
                 <TableBody isLoading={loading} loadingContent={<Spinner color={"primary"}/>}>
@@ -121,16 +121,23 @@ export default function FileTable()
                             <TableCell aria-label="Creation date">{entry.is_dir ? "-" : entry.creation_date.toLocaleDateString()}</TableCell>
                             <TableCell aria-label="Modification date">{entry.is_dir ? "-" : entry.last_modified.toLocaleDateString()}</TableCell>
                             <TableCell className="text-right" aria-label="Actions">
-                                <Dropdown classNames={{
-                                    content: "bg-white/10 backdrop-brightness-[0.5] backdrop-contrast-[1.1] backdrop-blur-sm"
-                                }}
-                                          aria-label={`Actions for ${entry.filename}`}>
+                                <Dropdown
+                                    classNames={{
+                                        content: "bg-[#2f115c]/50 outline-primary outline-1 backdrop-brightness-[.5] backdrop-saturate-[1.5] backdrop-blur-lg"
+                                    }}
+                                    aria-label={`Actions for ${entry.filename}`}
+                                >
                                     <DropdownTrigger>
                                         <Button variant={"light"} size={"sm"} aria-label={`Open actions menu for ${entry.filename}`}>
                                             <Icon icon={"mage:dots-horizontal"} aria-hidden="true"/>
                                         </Button>
                                     </DropdownTrigger>
-                                    <DropdownMenu aria-label={`Available actions for ${entry.filename}`}>
+                                    <DropdownMenu
+                                        aria-label={`Available actions for ${entry.filename}`}
+                                        itemClasses={{
+                                            base: "data-[hover=true]:bg-white/10 data-[selectable=true]:focus:bg-white/50"
+                                        }}
+                                    >
                                         <DropdownSection title={`${entry.filename} options`} showDivider>
                                             <DropdownItem key={`rename-${entry.filename}`} endContent={<Icon icon={"gg:rename"} width={18} aria-hidden="true"/>} onPress={() => openRenameModal(entry)} aria-label={`Rename ${entry.filename}`}>Rename</DropdownItem>
                                             <DropdownItem key={`copy-${entry.filename}`} endContent={<Icon icon={"mage:copy-fill"} aria-hidden="true"/>} onPress={() => openCopyModal([entry])} aria-label={`Copy ${entry.filename}`}>Copy</DropdownItem>
