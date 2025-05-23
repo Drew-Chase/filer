@@ -40,8 +40,9 @@ actix-web-lab = "0.24.1"
 vite-actix = "0.2.3"
 uuid = { version = "1.16.0", features = ["v4"] }
 tempfile = "3.10.1"
-archflow = {version = "0.1.4", features = ["tokio"]}
-tokio-util = {version = "0.7.15", features = []}
+archflow = { version = "0.1.4", features = ["tokio"] }
+tokio-util = { version = "0.7.15", features = [] }
+notify = { version = "6.1.1", features = ["serde"] }
 
 
 [build-dependencies]
