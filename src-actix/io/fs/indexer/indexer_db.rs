@@ -1,8 +1,9 @@
 use crate::io::fs::indexer::indexer_data::IndexerData;
+use log::LevelFilter;
 use sqlx::sqlite::SqliteSynchronous::Normal;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
-use sqlx::{Executor, Row, SqlitePool};
-use std::path::PathBuf;
+use sqlx::{ConnectOptions, Executor, Row, SqlitePool};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub async fn initialize() -> anyhow::Result<()> {
@@ -85,10 +86,34 @@ impl IndexerData {
         let result = sqlx::query(
             r#"SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'indexes'"#,
         )
-            .fetch_one(&pool)
-            .await?;
+        .fetch_one(&pool)
+        .await?;
 
         Ok(result.get::<i32, _>(0) > 0)
+    }
+
+    pub async fn get_entries_in_directory(path: impl AsRef<Path>) -> anyhow::Result<Vec<Self>> {
+        let path = path.as_ref();
+        let pool = create_pool().await?;
+        let query = format!("{}%", path.to_string_lossy());
+        let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes where path like ?"#)
+            .bind(&query)
+            .fetch_all(&pool)
+            .await?;
+        let in_dir: Vec<IndexerData> = result
+            .iter()
+            .filter(|entry| {
+                let entry_path = PathBuf::from(&entry.path);
+                if let Ok(path) = entry_path.strip_prefix(path) {
+                    !path.to_string_lossy().to_string().contains("/")
+                } else {
+                    false
+                }
+            })
+            .cloned()
+            .collect();
+
+        Ok(in_dir)
     }
 
     pub async fn search(query: impl AsRef<str>, filename_only: bool) -> anyhow::Result<Vec<Self>> {
@@ -113,6 +138,7 @@ pub async fn create_pool() -> anyhow::Result<SqlitePool> {
     let options = SqliteConnectOptions::from_str("sqlite:./app.db")?
         .create_if_missing(true)
         .journal_mode(SqliteJournalMode::Wal)
+        .log_statements(LevelFilter::Trace)
         .synchronous(Normal);
     let pool = SqlitePoolOptions::new()
         .max_connections(10)
