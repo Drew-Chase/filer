@@ -245,7 +245,8 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
 #[get("search")]
 async fn search(query_map: Query<HashMap<String, String>>) -> Result<impl Responder> {
     if let Some(query) = query_map.get("q") {
-        let results = IndexerData::search(query, true).await?;
+        let filename_only = query_map.get("filename_only").map(|s| s == "true").unwrap_or(false);
+        let results = IndexerData::search(query, filename_only).await?;
         Ok(HttpResponse::Ok().json(json!(results)))
     } else {
         Ok(HttpResponse::BadRequest().json(json!({
