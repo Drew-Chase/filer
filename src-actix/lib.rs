@@ -1,9 +1,11 @@
 use crate::auth::{auth_db, auth_endpoint};
-use io::fs::filesystem_endpoint;
 use crate::helpers::asset_endpoint::AssetsAppConfig;
 use crate::helpers::constants::{DEBUG, PORT};
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use crate::io::fs::indexer::indexer_data::IndexerData;
+use crate::io::fs::indexer::{indexer_data, indexer_db};
+use actix_web::{App, HttpResponse, HttpServer, middleware, web};
 use anyhow::Result;
+use io::fs::filesystem_endpoint;
 use log::Level::Info;
 use log::*;
 use serde_json::json;
@@ -17,7 +19,11 @@ pub mod io;
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder()
-        .filter_level(LevelFilter::Debug)
+        .filter_level(if DEBUG {
+            LevelFilter::Debug
+        } else {
+            LevelFilter::Info
+        })
         .format_timestamp(None)
         .init();
 
@@ -43,6 +49,24 @@ pub async fn run() -> Result<()> {
     }
 
     auth_db::initialize().await?;
+
+    // Start file indexing and watcher in a separate task to avoid blocking server startup
+    if !IndexerData::does_table_exist().await? {
+        indexer_db::initialize().await?;
+        tokio::spawn(async {
+            if let Err(e) = indexer_data::index_all_files().await {
+                error!("Error starting file indexer: {}", e);
+            }
+        });
+    }
+
+    tokio::spawn(async {
+        // Start file watcher
+        if let Err(e) = indexer_data::start_file_watcher().await {
+            error!("Error starting file watcher: {}", e);
+        }
+    });
+
     let server = HttpServer::new(move || {
         App::new()
             .wrap(middleware::Logger::default())
