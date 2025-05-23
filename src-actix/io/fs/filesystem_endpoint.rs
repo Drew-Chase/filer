@@ -2,13 +2,15 @@ use crate::auth::auth_middleware::Authentication;
 use crate::helpers::http_error::Result;
 use crate::io::fs::download_parameters::DownloadParameters;
 use crate::io::fs::filesystem_data::{FilesystemData, FilesystemEntry};
+use crate::io::fs::indexer::indexer_data;
+use crate::io::fs::indexer::indexer_data::IndexerData;
 use actix_web::http::header::ContentDisposition;
 use actix_web::web::Query;
-use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_lab::__reexports::futures_util::StreamExt;
 use actix_web_lab::sse::{Data, Event, Sse};
-use archflow::compress::FileOptions;
 use archflow::compress::tokio::archive::ZipArchive;
+use archflow::compress::FileOptions;
 use archflow::compression::CompressionMethod;
 use archflow::error::ArchiveError;
 use archflow::types::FileDateTime;
@@ -25,10 +27,10 @@ use std::time::Duration;
 use sysinfo::Disks;
 use tokio::fs;
 use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 use tokio::io::duplex;
-use tokio::sync::Mutex;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 use tokio_util::io::ReaderStream;
 
 // At module level
@@ -242,13 +244,21 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
 
 #[get("search")]
 async fn search(query_map: Query<HashMap<String, String>>) -> Result<impl Responder> {
-    if let Some(_query) = query_map.get("q") {
-        Ok(HttpResponse::Ok().finish())
+    if let Some(query) = query_map.get("q") {
+        let results = IndexerData::search(query, true).await?;
+        Ok(HttpResponse::Ok().json(json!(results)))
     } else {
         Ok(HttpResponse::BadRequest().json(json!({
             "error": "Search query is required"
         })))
     }
+}
+#[post("refresh-index")]
+pub async fn refresh_index() -> Result<impl Responder> {
+    if let Err(e) = indexer_data::index_all_files().await {
+        error!("Error starting file indexer: {}", e);
+    }
+    Ok(HttpResponse::Ok().finish())
 }
 // Add a new endpoint for progress tracking
 #[get("/upload/progress/{upload_id}")]
@@ -588,6 +598,51 @@ async fn new_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
     Ok(HttpResponse::Ok().finish())
 }
 
+#[get("/indexer/stats")]
+async fn get_indexer_stats() -> Result<impl Responder> {
+    match IndexerData::get_stats().await {
+        Ok((count, total_size, avg_size)) => {
+            Ok(HttpResponse::Ok().json(json!({
+                "status": "success",
+                "stats": {
+                    "fileCount": count,
+                    "totalSize": total_size,
+                    "averageSize": avg_size,
+                    "humanReadableTotalSize": format_size(total_size),
+                    "humanReadableAverageSize": format_size(avg_size)
+                }
+            })))
+        },
+        Err(e) => {
+            error!("Error getting indexer stats: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "status": "error",
+                "message": format!("Failed to get indexer statistics: {}", e)
+            })))
+        }
+    }
+}
+
+// Helper function to format file sizes in a human-readable format
+fn format_size(size: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+    const TB: u64 = GB * 1024;
+
+    if size < KB {
+        format!("{} B", size)
+    } else if size < MB {
+        format!("{:.2} KB", size as f64 / KB as f64)
+    } else if size < GB {
+        format!("{:.2} MB", size as f64 / MB as f64)
+    } else if size < TB {
+        format!("{:.2} GB", size as f64 / GB as f64)
+    } else {
+        format!("{:.2} TB", size as f64 / TB as f64)
+    }
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/filesystem")
@@ -600,6 +655,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(copy_filesystem_entry)
             .service(move_filesystem_entry)
             .service(delete_filesystem_entry)
-            .service(new_filesystem_entry),
+            .service(new_filesystem_entry)
+            .service(get_indexer_stats),
     );
 }

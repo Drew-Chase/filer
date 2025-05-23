@@ -4,3 +4,4 @@ mod filesystem_data;
 #[cfg(test)]
 mod filesystem_test;
 mod download_parameters;
+pub mod indexer;
