@@ -1,7 +1,7 @@
 use crate::io::fs::indexer::indexer_data::IndexerData;
 use sqlx::sqlite::SqliteSynchronous::Normal;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
-use sqlx::{Executor, SqlitePool};
+use sqlx::{Executor, Row, SqlitePool};
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -78,6 +78,17 @@ impl IndexerData {
             .fetch_optional(&pool)
             .await?;
         Ok(result)
+    }
+
+    pub async fn does_table_exist() -> anyhow::Result<bool> {
+        let pool = create_pool().await?;
+        let result = sqlx::query(
+            r#"SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'indexes'"#,
+        )
+            .fetch_one(&pool)
+            .await?;
+
+        Ok(result.get::<i32, _>(0) > 0)
     }
 
     pub async fn search(query: impl AsRef<str>, filename_only: bool) -> anyhow::Result<Vec<Self>> {

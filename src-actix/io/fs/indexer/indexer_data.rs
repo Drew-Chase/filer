@@ -3,11 +3,10 @@ use anyhow::{Context, Result};
 use log::{debug, error, info, warn};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use sqlx::{FromRow, SqlitePool};
-use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use walkdir::WalkDir;
@@ -33,7 +32,7 @@ pub async fn index_all_files() -> Result<()> {
     info!("Starting file indexing...");
     let start_time = std::time::Instant::now();
 
-    // Create database connection pool
+    // Create a database connection pool
     let pool = indexer::indexer_db::create_pool().await?;
 
     // Get all disk mount points
@@ -101,8 +100,6 @@ pub async fn index_all_files() -> Result<()> {
         error_count
     );
 
-    // Start file watcher
-    start_file_watcher(pool).await?;
 
     Ok(())
 }
@@ -156,8 +153,9 @@ async fn insert_batch(batch: &[IndexerData], pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn start_file_watcher(pool: SqlitePool) -> Result<()> {
+pub async fn start_file_watcher( ) -> Result<()> {
     info!("Starting file watcher...");
+    let pool = indexer::indexer_db::create_pool().await?;
 
     // Create watcher configuration
     let config = Config::default()
@@ -168,7 +166,7 @@ async fn start_file_watcher(pool: SqlitePool) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
     let watcher = RecommendedWatcher::new(tx, config)?;
 
-    // Create watcher state
+    // Create a watcher state
     let watcher_state = Arc::new(Mutex::new(FileWatcherState {
         watcher,
         pool: pool.clone(),
