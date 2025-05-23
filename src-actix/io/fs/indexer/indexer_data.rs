@@ -4,7 +4,7 @@ use log::{debug, error, info, warn};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use sqlx::{FromRow, SqlitePool};
 use std::fs;
-use std::path::{Path};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 use tokio::sync::Mutex;
@@ -25,7 +25,6 @@ static mut FILE_WATCHER: Option<Arc<Mutex<FileWatcherState>>> = None;
 
 struct FileWatcherState {
     watcher: RecommendedWatcher,
-    pool: SqlitePool,
 }
 
 pub async fn index_all_files() -> Result<()> {
@@ -62,7 +61,7 @@ pub async fn index_all_files() -> Result<()> {
                     Ok(data) => {
                         batch.push(data);
 
-                        // When batch is full, insert into database
+                        // When the batch is full, insert into the database
                         if batch.len() >= batch_size {
                             if let Err(e) = insert_batch(&batch, &pool).await {
                                 error!("Error inserting batch: {}", e);
@@ -93,13 +92,13 @@ pub async fn index_all_files() -> Result<()> {
     }
 
     let elapsed = start_time.elapsed();
+    let hours = elapsed.as_secs() / 3600;
+    let minutes = (elapsed.as_secs() % 3600) / 60;
+    let seconds = elapsed.as_secs() % 60;
     info!(
-        "Indexing completed in {:.2}s. Indexed {} files, {} errors.",
-        elapsed.as_secs_f64(),
-        indexed_count,
-        error_count
+        "Indexing completed in {}h {}m {}s. Indexed {} files, {} errors.",
+        hours, minutes, seconds, indexed_count, error_count
     );
-
 
     Ok(())
 }
@@ -108,7 +107,7 @@ async fn insert_batch(batch: &[IndexerData], pool: &SqlitePool) -> Result<()> {
     if batch.is_empty() {
         return Ok(());
     }
-    
+
     // Begin transaction for better performance
     let mut tx = pool.begin().await?;
 
@@ -121,7 +120,7 @@ async fn insert_batch(batch: &[IndexerData], pool: &SqlitePool) -> Result<()> {
         .map(|i| {
             format!(
                 "(${}, ${}, ${}, ${}, ${})",
-                i * 5 + 1,  // Fixed: 5 columns, not 4
+                i * 5 + 1, // Fixed: 5 columns, not 4
                 i * 5 + 2,
                 i * 5 + 3,
                 i * 5 + 4,
@@ -153,31 +152,22 @@ async fn insert_batch(batch: &[IndexerData], pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-pub async fn start_file_watcher( ) -> Result<()> {
+pub async fn start_file_watcher() -> Result<()> {
     info!("Starting file watcher...");
-    let pool = indexer::indexer_db::create_pool().await?;
 
-    // Create watcher configuration
     let config = Config::default()
         .with_poll_interval(Duration::from_secs(2))
         .with_compare_contents(false);
 
-    // Create watcher
     let (tx, rx) = std::sync::mpsc::channel();
     let watcher = RecommendedWatcher::new(tx, config)?;
 
-    // Create a watcher state
-    let watcher_state = Arc::new(Mutex::new(FileWatcherState {
-        watcher,
-        pool: pool.clone(),
-    }));
+    let watcher_state = Arc::new(Mutex::new(FileWatcherState { watcher }));
 
-    // Store watcher state globally
     unsafe {
         FILE_WATCHER = Some(watcher_state.clone());
     }
 
-    // Watch all disk mount points
     let disks = sysinfo::Disks::new_with_refreshed_list();
     let mut state = watcher_state.lock().await;
 
@@ -189,20 +179,16 @@ pub async fn start_file_watcher( ) -> Result<()> {
         }
     }
 
-    // Process file events in a separate task
     tokio::spawn(async move {
-        let pool = pool.clone();
-
         loop {
             match rx.recv() {
                 Ok(event) => {
-                    if let Err(e) = process_file_event(event, &pool).await {
+                    if let Err(e) = process_file_event(event).await {
                         error!("Error processing file event: {}", e);
                     }
                 }
                 Err(e) => {
                     error!("File watcher error: {}", e);
-                    // Try to recover after a short delay
                     sleep(Duration::from_secs(5)).await;
                 }
             }
@@ -213,24 +199,61 @@ pub async fn start_file_watcher( ) -> Result<()> {
     Ok(())
 }
 
-async fn process_file_event(event: Result<Event, notify::Error>, pool: &SqlitePool) -> Result<()> {
+async fn process_file_event(event: Result<Event, notify::Error>) -> Result<()> {
+    let current_exe_path = std::env::current_exe()?
+        .parent()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+    let cwd = std::env::current_dir()?.to_string_lossy().to_string();
+    let ignored_paths = vec![
+        "/dev",
+        "/proc",
+        "/sys",
+        "/run",
+        "/mnt",
+        "/media",
+        "/lost+found",
+        "/tmp",
+        "/var/tmp",
+        "/var/log",
+        "/var/cache",
+        "C:/Windows",
+        "C:/Windows.old",
+        "C:/Program Files/Windows Defender",
+        "C:/ProgramData/Microsoft",
+        "C:/System Volume Information",
+        "C:/Recovery",
+        "C:/PerfLogs",
+        "C:/Users/*/AppData/Local/Temp",
+        "C:/Users/*/AppData/LocalLow",
+        "C:/Users/*/AppData/Local/Microsoft",
+        "**/*.log",
+        current_exe_path.as_str(),
+        cwd.as_str(),
+    ];
+
     let event = event?;
 
     match event.kind {
-        // File created or modified
         EventKind::Create(_) | EventKind::Modify(_) => {
             for path in event.paths {
+                // Check if the path matches any ignored patterns 
+                if ignored_paths.iter().any(|ignored| {
+                    let pattern = glob::Pattern::new(ignored).unwrap_or_default();
+                    pattern.matches(&path.to_string_lossy().replace('\\', "/"))
+                }) {
+                    continue;
+                }
+
                 if path.is_file() {
                     match IndexerData::from_path(&path) {
                         Ok(data) => {
                             debug!("Updating index for modified file: {}", data.path);
 
-                            // Check if file exists in database
                             if let Ok(Some(_)) = IndexerData::get_by_path(&data.path).await {
-                                // Update existing record
                                 data.update().await?;
                             } else {
-                                // Insert new record
                                 data.insert().await?;
                             }
                         }
@@ -242,20 +265,25 @@ async fn process_file_event(event: Result<Event, notify::Error>, pool: &SqlitePo
             }
         }
 
-        // File removed
         EventKind::Remove(_) => {
             for path in event.paths {
-                let path_str = path.to_string_lossy().to_string();
+                // Check if the path matches any ignored patterns
+                if ignored_paths.iter().any(|ignored| {
+                    let pattern = glob::Pattern::new(ignored).unwrap_or_default();
+                    pattern.matches(&path.to_string_lossy().replace('\\', "/"))
+                }) {
+                    continue;
+                }
+
+                let path_str = path.to_string_lossy().to_string().replace('\\', "/");
                 debug!("Removing index for deleted file: {}", path_str);
 
-                // Delete from database
                 if let Err(e) = IndexerData::delete(&path_str).await {
                     error!("Error removing index for {:?}: {}", path, e);
                 }
             }
         }
 
-        // Ignore other events
         _ => {}
     }
 
@@ -287,7 +315,7 @@ impl IndexerData {
             .unwrap_or(0);
 
         Ok(Self {
-            path: path.to_string_lossy().to_string(),
+            path: path.to_string_lossy().to_string().replace('\\', "/"),
             filename,
             size,
             mtime,
