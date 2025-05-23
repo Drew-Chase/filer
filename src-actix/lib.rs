@@ -60,12 +60,12 @@ pub async fn run() -> Result<()> {
         });
     }
 
-    tokio::spawn(async {
-        // Start file watcher
-        if let Err(e) = indexer_data::start_file_watcher().await {
-            error!("Error starting file watcher: {}", e);
-        }
-    });
+//    tokio::spawn(async {
+//        // Start file watcher
+//        if let Err(e) = indexer_data::start_file_watcher().await {
+//            error!("Error starting file watcher: {}", e);
+//        }
+//    });
 
     let server = HttpServer::new(move || {
         App::new()
