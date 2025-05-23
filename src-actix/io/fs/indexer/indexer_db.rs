@@ -93,6 +93,7 @@ impl IndexerData {
 
     pub async fn search(query: impl AsRef<str>, filename_only: bool) -> anyhow::Result<Vec<Self>> {
         let pool = create_pool().await?;
+        let query = format!("%{}%", query.as_ref());
         let result = sqlx::query_as::<_, IndexerData>(
             format!(
                 r#"select * from indexes where {} like ?"#,
@@ -100,7 +101,7 @@ impl IndexerData {
             )
             .as_str(),
         )
-        .bind(query.as_ref())
+        .bind(&query)
         .fetch_all(&pool)
         .await?;
 
