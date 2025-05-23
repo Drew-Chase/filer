@@ -94,8 +94,10 @@ impl IndexerData {
 
     pub async fn get_entries_in_directory(path: impl AsRef<Path>) -> anyhow::Result<Vec<Self>> {
         let path = path.as_ref();
+        let path_str = path.to_string_lossy().to_string();
+        let path_str = path_str.replace('\\', "/");
         let pool = create_pool().await?;
-        let query = format!("{}%", path.to_string_lossy());
+        let query = format!("{}%", path_str);
         let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes where path like ?"#)
             .bind(&query)
             .fetch_all(&pool)
@@ -114,6 +116,22 @@ impl IndexerData {
             .collect();
 
         Ok(in_dir)
+    }
+    
+    pub async fn get_directory_size(path: impl AsRef<Path>) -> anyhow::Result<u64> {
+        let path = path.as_ref();
+        let path_str = path.to_string_lossy().to_string();
+        let path_str = path_str.replace('\\', "/");
+        let pool = create_pool().await?;
+        let query = format!("{}%", path_str);
+        let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes where path like ?"#)
+            .bind(&query)
+            .fetch_all(&pool)
+            .await?;
+
+        let size: u64 = result.iter().map(|item| item.size).sum();
+        
+        Ok(size)
     }
 
     pub async fn search(query: impl AsRef<str>, filename_only: bool) -> anyhow::Result<Vec<Self>> {

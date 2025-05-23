@@ -85,7 +85,12 @@ async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> 
         })));
     }
 
-    let entries: FilesystemData = path.try_into()?;
+    let mut entries: FilesystemData = path.try_into()?;
+    for entry in entries.entries.iter_mut(){
+        if entry.is_dir{
+            entry.size = IndexerData::get_directory_size(entry.path.clone()).await.unwrap_or(0);
+        }
+    }
     Ok(HttpResponse::Ok().json(json!(entries)))
 }
 
