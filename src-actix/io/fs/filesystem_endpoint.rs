@@ -6,11 +6,11 @@ use crate::io::fs::indexer::indexer_data;
 use crate::io::fs::indexer::indexer_data::IndexerData;
 use actix_web::http::header::ContentDisposition;
 use actix_web::web::Query;
-use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
 use actix_web_lab::__reexports::futures_util::StreamExt;
 use actix_web_lab::sse::{Data, Event, Sse};
-use archflow::compress::tokio::archive::ZipArchive;
 use archflow::compress::FileOptions;
+use archflow::compress::tokio::archive::ZipArchive;
 use archflow::compression::CompressionMethod;
 use archflow::error::ArchiveError;
 use archflow::types::FileDateTime;
@@ -27,10 +27,10 @@ use std::time::Duration;
 use sysinfo::Disks;
 use tokio::fs;
 use tokio::fs::File;
-use tokio::io::duplex;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::mpsc::Sender;
+use tokio::io::duplex;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::Sender;
 use tokio_util::io::ReaderStream;
 
 // At module level
@@ -85,12 +85,7 @@ async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> 
         })));
     }
 
-    let mut entries: FilesystemData = path.try_into()?;
-    for entry in entries.entries.iter_mut(){
-        if entry.is_dir{
-            entry.size = IndexerData::get_directory_size(entry.path.clone()).await.unwrap_or(0);
-        }
-    }
+    let entries: FilesystemData = path.try_into()?;
     Ok(HttpResponse::Ok().json(json!(entries)))
 }
 
@@ -250,7 +245,10 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
 #[get("search")]
 async fn search(query_map: Query<HashMap<String, String>>) -> Result<impl Responder> {
     if let Some(query) = query_map.get("q") {
-        let filename_only = query_map.get("filename_only").map(|s| s == "true").unwrap_or(false);
+        let filename_only = query_map
+            .get("filename_only")
+            .map(|s| s == "true")
+            .unwrap_or(false);
         let results = IndexerData::search(query, filename_only).await?;
         Ok(HttpResponse::Ok().json(json!(results)))
     } else {
@@ -607,18 +605,16 @@ async fn new_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
 #[get("/indexer/stats")]
 async fn get_indexer_stats() -> Result<impl Responder> {
     match IndexerData::get_stats().await {
-        Ok((count, total_size, avg_size)) => {
-            Ok(HttpResponse::Ok().json(json!({
-                "status": "success",
-                "stats": {
-                    "fileCount": count,
-                    "totalSize": total_size,
-                    "averageSize": avg_size,
-                    "humanReadableTotalSize": format_size(total_size),
-                    "humanReadableAverageSize": format_size(avg_size)
-                }
-            })))
-        },
+        Ok((count, total_size, avg_size)) => Ok(HttpResponse::Ok().json(json!({
+            "status": "success",
+            "stats": {
+                "fileCount": count,
+                "totalSize": total_size,
+                "averageSize": avg_size,
+                "humanReadableTotalSize": format_size(total_size),
+                "humanReadableAverageSize": format_size(avg_size)
+            }
+        }))),
         Err(e) => {
             error!("Error getting indexer stats: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
