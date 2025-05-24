@@ -1,3 +1,4 @@
+use crate::configuration::Configuration;
 use crate::io::fs::indexer;
 use anyhow::{Context, Result};
 use log::{debug, error, info, warn};
@@ -200,51 +201,9 @@ pub async fn start_file_watcher() -> Result<()> {
 }
 
 async fn process_file_event(event: Result<Event, notify::Error>) -> Result<()> {
-    let current_exe_path = std::env::current_exe()?
-        .parent()
-        .unwrap()
-        .to_string_lossy()
-        .to_string();
-    let current_exe_path = current_exe_path.as_str().replace('\\', "/");
-    let cwd = std::env::current_dir()?.to_string_lossy().to_string();
-    let cwd = cwd.as_str().replace('\\', "/");
-    let cwd = format!("{}/**/*", cwd);
-    let current_exe_path = format!("{}/**/*", current_exe_path);
-    let ignored_paths = vec![
-        "/dev/**/*",
-        "/proc/**/*",
-        "/sys/**/*",
-        "/run/**/*",
-        "/mnt/**/*",
-        "/media/**/*",
-        "/lost+found/**/*",
-        "/tmp/**/*",
-        "/var/tmp/**/*",
-        "/var/log/**/*",
-        "/var/cache/**/*",
-        "C:/Windows/**/*",
-        "C:/Windows.old/**/*",
-        "C:/Program Files/Windows Defender/**/*",
-        "C:/ProgramData/Microsoft/**/*",
-        "C:/System Volume Information/**/*",
-        "C:/Recovery/**/*",
-        "C:/PerfLogs/**/*",
-        "C:/Users/*/AppData/Local/Temp/**/*",
-        "C:/Users/*/AppData/LocalLow/**/*",
-        "C:/Users/*/AppData/Local/Microsoft/**/*",
-        "**/*.log",
-        "**/*.db*",
-        "**/*.dat",
-        "**/*.lock",
-        "**/*.tmp",
-        "**/*.bak",
-        "**/Temp/**",
-        "**/Tmp/**",
-        "**/tmp/**",
-        "**/temp/**",
-        current_exe_path.as_str(),
-        cwd.as_str(),
-    ];
+    let config = Configuration::get();
+    let is_ignored_path_whitelist = config.filter_mode_whitelist;
+    let ignored_paths = &config.filter;
 
     let event = event?;
 
@@ -252,10 +211,14 @@ async fn process_file_event(event: Result<Event, notify::Error>) -> Result<()> {
         EventKind::Create(_) | EventKind::Modify(_) => {
             for path in event.paths {
                 // Check if the path matches any ignored patterns
-                if ignored_paths.iter().any(|ignored| {
+                let path_str = path.to_string_lossy().replace('\\', "/");
+                let matches_pattern = ignored_paths.iter().any(|ignored| {
                     let pattern = glob::Pattern::new(ignored).unwrap_or_default();
-                    pattern.matches(&path.to_string_lossy().replace('\\', "/"))
-                }) {
+                    pattern.matches(&path_str)
+                });
+                if (!is_ignored_path_whitelist && matches_pattern)
+                    || (is_ignored_path_whitelist && !matches_pattern)
+                {
                     continue;
                 }
 
@@ -281,10 +244,14 @@ async fn process_file_event(event: Result<Event, notify::Error>) -> Result<()> {
         EventKind::Remove(_) => {
             for path in event.paths {
                 // Check if the path matches any ignored patterns
-                if ignored_paths.iter().any(|ignored| {
+                let path_str = path.to_string_lossy().replace('\\', "/");
+                let matches_pattern = ignored_paths.iter().any(|ignored| {
                     let pattern = glob::Pattern::new(ignored).unwrap_or_default();
-                    pattern.matches(&path.to_string_lossy().replace('\\', "/"))
-                }) {
+                    pattern.matches(&path_str)
+                });
+                if (!is_ignored_path_whitelist && matches_pattern)
+                    || (is_ignored_path_whitelist && !matches_pattern)
+                {
                     continue;
                 }
 
