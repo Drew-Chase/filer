@@ -19,11 +19,7 @@ pub mod io;
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder()
-        .filter_level(if DEBUG {
-            LevelFilter::Debug
-        } else {
-            LevelFilter::Info
-        })
+        .filter_level(LevelFilter::Debug)
         .format_timestamp(None)
         .init();
 
@@ -60,13 +56,14 @@ pub async fn run() -> Result<()> {
         });
     }
 
-    tokio::spawn(async {
-        // Start file watcher
-        if let Err(e) = indexer_data::start_file_watcher().await {
-            error!("Error starting file watcher: {}", e);
-        }
-    });
-
+    if !DEBUG {
+        tokio::spawn(async {
+            // Start file watcher
+            if let Err(e) = indexer_data::start_file_watcher().await {
+                error!("Error starting file watcher: {}", e);
+            }
+        });
+    }
     let server = HttpServer::new(move || {
         App::new()
             .wrap(middleware::Logger::default())
