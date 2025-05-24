@@ -43,7 +43,19 @@ export default function DeleteModal(props: DeleteProperties)
                                 description: "No entries selected"
                             });
                         else
-                            await deleteEntry(props.entries.map(i => i.path));
+                        {
+                            try
+                            {
+                                await deleteEntry(props.entries.map(i => i.path));
+                            } catch (e: Error | any)
+                            {
+                                addToast({
+                                    title: "Error",
+                                    description: e.message || e.toString() || "Unknown error occurred while trying to delete the entry.",
+                                    color: "danger"
+                                });
+                            }
+                        }
                         props.onClose();
                         setIsLoading(false);
                     }}>Delete</Button>
