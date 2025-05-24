@@ -1,8 +1,9 @@
-import {Avatar, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Image, Input, Kbd, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@heroui/react";
+import {Avatar, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Image, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useAuth} from "../providers/AuthProvider.tsx";
 import logo from "../images/filer-logo.svg";
 import {motion} from "framer-motion";
+import SearchInput from "./search/SearchInput.tsx";
 
 export default function Navigation()
 {
@@ -28,20 +29,10 @@ export default function Navigation()
                 </NavbarContent>
 
                 <NavbarContent justify={"center"} className={"w-1/2"}>
-                    <Input
-                        label={"Search"}
-                        placeholder={"Search for files or folders..."}
-                        size={"sm"}
-                        className={"w-full"}
-                        classNames={{
-                            inputWrapper: "bg-white/20 data-[hover]:bg-white/15 group-data-[focus]:bg-white/10 group-data-[focus]:border-primary border-1 border-transparent"
-                        }}
-                        endContent={<Kbd keys={["command"]}>K</Kbd>}
-                    />
+                    <SearchInput/>
                 </NavbarContent>
 
                 <NavbarContent justify="end">
-                    {/*<NavbarItem><ThemeSwitchComponent/></NavbarItem>*/}
                     <NavbarItem>
                         <Dropdown
                             classNames={{

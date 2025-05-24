@@ -14,6 +14,14 @@ export interface FilesystemEntry
     file_type?: string;
 }
 
+type FilesystemSearchResult = {
+    filename: string;
+    path: string;
+    size: number;
+    ctime: number;
+    mtime: number;
+}
+
 /**
  * Represents a directory listing with entries and parent path
  */
@@ -314,5 +322,39 @@ export class FileSystem
             const errorData = await response.json();
             throw new Error(errorData.error || `Failed to create: ${response.statusText}`);
         }
+    }
+
+    static async search(query: string, filename_only:boolean, abortSignal:AbortSignal):Promise<FilesystemEntry[]>
+    {
+        const response = await fetch(`/api/filesystem/search?q=${encodeURIComponent(query)}&filename_only=${filename_only}`, {signal: abortSignal});
+        if (!response.ok)
+        {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to search: ${response.statusText}`);
+        }
+        const results =  await response.json() as FilesystemSearchResult[];
+        return results.map(result =>
+        {
+            let entry: FilesystemEntry = {
+                filename: result.filename,
+                path: result.path,
+                size: result.size,
+                last_modified: new Date(result.mtime * 1000),
+                creation_date: new Date(result.ctime * 1000),
+                is_dir: false,
+            };
+
+            if (entry.is_dir)
+            {
+                entry.file_type = "Folder";
+            } else
+            {
+                const extensions = entry.filename.toLowerCase().trim().split(".").slice(1);
+                let extension = extensions.length > 0 ? extensions.join(".") : "";
+                entry.file_type = extensionFileTypeMap.find(e => e.extensions.includes(extension))?.description ?? "File";
+            }
+
+            return entry;
+        });
     }
 }
