@@ -205,30 +205,43 @@ async fn process_file_event(event: Result<Event, notify::Error>) -> Result<()> {
         .unwrap()
         .to_string_lossy()
         .to_string();
+    let current_exe_path = current_exe_path.as_str().replace('\\', "/");
     let cwd = std::env::current_dir()?.to_string_lossy().to_string();
+    let cwd = cwd.as_str().replace('\\', "/");
+    let cwd = format!("{}/**/*", cwd);
+    let current_exe_path = format!("{}/**/*", current_exe_path);
     let ignored_paths = vec![
-        "/dev",
-        "/proc",
-        "/sys",
-        "/run",
-        "/mnt",
-        "/media",
-        "/lost+found",
-        "/tmp",
-        "/var/tmp",
-        "/var/log",
-        "/var/cache",
-        "C:/Windows",
-        "C:/Windows.old",
-        "C:/Program Files/Windows Defender",
-        "C:/ProgramData/Microsoft",
-        "C:/System Volume Information",
-        "C:/Recovery",
-        "C:/PerfLogs",
-        "C:/Users/*/AppData/Local/Temp",
-        "C:/Users/*/AppData/LocalLow",
-        "C:/Users/*/AppData/Local/Microsoft",
+        "/dev/**/*",
+        "/proc/**/*",
+        "/sys/**/*",
+        "/run/**/*",
+        "/mnt/**/*",
+        "/media/**/*",
+        "/lost+found/**/*",
+        "/tmp/**/*",
+        "/var/tmp/**/*",
+        "/var/log/**/*",
+        "/var/cache/**/*",
+        "C:/Windows/**/*",
+        "C:/Windows.old/**/*",
+        "C:/Program Files/Windows Defender/**/*",
+        "C:/ProgramData/Microsoft/**/*",
+        "C:/System Volume Information/**/*",
+        "C:/Recovery/**/*",
+        "C:/PerfLogs/**/*",
+        "C:/Users/*/AppData/Local/Temp/**/*",
+        "C:/Users/*/AppData/LocalLow/**/*",
+        "C:/Users/*/AppData/Local/Microsoft/**/*",
         "**/*.log",
+        "**/*.db*",
+        "**/*.dat",
+        "**/*.lock",
+        "**/*.tmp",
+        "**/*.bak",
+        "**/Temp/**",
+        "**/Tmp/**",
+        "**/tmp/**",
+        "**/temp/**",
         current_exe_path.as_str(),
         cwd.as_str(),
     ];
@@ -238,7 +251,7 @@ async fn process_file_event(event: Result<Event, notify::Error>) -> Result<()> {
     match event.kind {
         EventKind::Create(_) | EventKind::Modify(_) => {
             for path in event.paths {
-                // Check if the path matches any ignored patterns 
+                // Check if the path matches any ignored patterns
                 if ignored_paths.iter().any(|ignored| {
                     let pattern = glob::Pattern::new(ignored).unwrap_or_default();
                     pattern.matches(&path.to_string_lossy().replace('\\', "/"))
