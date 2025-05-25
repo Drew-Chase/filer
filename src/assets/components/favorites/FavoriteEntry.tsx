@@ -62,13 +62,13 @@ export function FavoriteEntry(props: { entry: FavoriteItem })
                         aria-hidden="true"
                     />
                     <div className={"flex flex-col cursor-pointer"} onClick={() => navigate(props.entry.path)}>
-                        <p className={"text-tiny"}>{props.entry.name}</p>
+                        <p className={"text-tiny max-w-[300px] truncate"}>{props.entry.name}</p>
                         <motion.div
                             initial={{opacity: 0, height: 0}}
                             animate={{opacity: isHovering ? 1 : 0, height: isHovering ? 16 : 0}}
                             transition={{duration: 0.5, delay: 0, type: "spring", ease: "easeInOut"}}
                         >
-                            <p className={"text-tiny italic font-light truncate opacity-50 pr-2"}>{props.entry.path}</p>
+                            <p className={"text-tiny italic font-light truncate opacity-50 pr-2 max-w-[300px]"}>{props.entry.path}</p>
                         </motion.div>
                     </div>
                 </div>
