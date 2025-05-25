@@ -14,6 +14,7 @@ use log::Level::Info;
 use log::*;
 use serde_json::json;
 use std::env::set_current_dir;
+use tokio::fs;
 use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
 
@@ -48,6 +49,7 @@ pub async fn run() -> Result<()> {
                 }
             }
         });
+        fs::create_dir_all("target/dev-env").await?;
         set_current_dir("target/dev-env")?;
     }
 
