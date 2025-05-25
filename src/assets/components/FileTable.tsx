@@ -5,6 +5,7 @@ import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
 import FileEntryIcon from "./FileEntryIcon.tsx";
 import {motion} from "framer-motion";
 import {useEffect, useState} from "react";
+import {useFavorites} from "../providers/FavoritesProvider.tsx";
 
 export default function FileTable()
 {
@@ -28,6 +29,7 @@ export default function FileTable()
     const MAX_ITEMS_PER_PAGE = 25;
     const [pageItems, setPageItems] = useState<FilesystemEntry[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
+    const {addFavorite, removeFavorite, isFavorited} = useFavorites();
 
     useEffect(() =>
     {
@@ -140,6 +142,21 @@ export default function FileTable()
                                         }}
                                     >
                                         <DropdownSection title={`${entry.filename} options`} showDivider>
+                                            {entry.is_dir ? (
+                                                <DropdownItem
+                                                    key={`favorite-${entry.filename}`}
+                                                    onPress={() =>
+                                                    {
+                                                        if (isFavorited(entry.path))
+                                                            removeFavorite(entry.path);
+                                                        else
+                                                            addFavorite({path: entry.path, name: entry.filename});
+
+                                                    }}
+                                                >
+                                                    {isFavorited(entry.path) ? "UnFavorite" : "Favorite"}
+                                                </DropdownItem>
+                                            ) : (<></>)}
                                             <DropdownItem key={`rename-${entry.filename}`} endContent={<Icon icon={"gg:rename"} width={18} aria-hidden="true"/>} onPress={() => openRenameModal(entry)} aria-label={`Rename ${entry.filename}`}>Rename</DropdownItem>
                                             <DropdownItem key={`copy-${entry.filename}`} endContent={<Icon icon={"mage:copy-fill"} aria-hidden="true"/>} onPress={() => openCopyModal([entry])} aria-label={`Copy ${entry.filename}`}>Copy</DropdownItem>
                                             <DropdownItem key={`move-${entry.filename}`} endContent={<Icon icon={"mage:l-arrow-right-up"} width={18} aria-hidden="true"/>} onPress={() => openMoveModal([entry])} aria-label={`Move ${entry.filename}`}>Move</DropdownItem>
