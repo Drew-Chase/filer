@@ -1,4 +1,5 @@
 import {extensionFileTypeMap} from "./file-type-match.ts";
+import {addToast} from "@heroui/react";
 
 /**
  * Represents a filesystem entry (file or directory)
@@ -55,7 +56,14 @@ export class FileSystem
 
             if (!response.ok)
             {
-                throw new Error(`Error: ${response.status} - ${response.statusText}`);
+                let body = await response.text();
+                if (body)
+                {
+                    throw new Error(body);
+                } else
+                {
+                    throw new Error(`Error: ${response.status} - ${response.statusText}`);
+                }
             }
 
             let tmp = await response.json() as FilesystemData;
@@ -89,8 +97,13 @@ export class FileSystem
                 return entry;
             });
             return tmp;
-        } catch (error)
+        } catch (error: Error | any)
         {
+            addToast({
+                title: "Failed to get Directory",
+                description: error.message || error.toString() || "Unknown error occurred while trying to get the directory.",
+                color: "danger"
+            });
             console.error("Error fetching filesystem data:", error);
             throw error;
         }
@@ -324,7 +337,7 @@ export class FileSystem
         }
     }
 
-    static async search(query: string, filename_only:boolean, abortSignal:AbortSignal):Promise<FilesystemEntry[]>
+    static async search(query: string, filename_only: boolean, abortSignal: AbortSignal): Promise<FilesystemEntry[]>
     {
         const response = await fetch(`/api/filesystem/search?q=${encodeURIComponent(query)}&filename_only=${filename_only}`, {signal: abortSignal});
         if (!response.ok)
@@ -332,7 +345,7 @@ export class FileSystem
             const errorData = await response.json();
             throw new Error(errorData.error || `Failed to search: ${response.statusText}`);
         }
-        const results =  await response.json() as FilesystemSearchResult[];
+        const results = await response.json() as FilesystemSearchResult[];
         return results.map(result =>
         {
             let entry: FilesystemEntry = {
@@ -341,7 +354,7 @@ export class FileSystem
                 size: result.size,
                 last_modified: new Date(result.mtime * 1000),
                 creation_date: new Date(result.ctime * 1000),
-                is_dir: false,
+                is_dir: false
             };
 
             if (entry.is_dir)
