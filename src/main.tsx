@@ -12,6 +12,7 @@ import {AuthProvider} from "./assets/providers/AuthProvider.tsx";
 import FilesPage from "./assets/pages/FilesPage.tsx";
 import ErrorPage from "./assets/pages/ErrorPage.tsx";
 import {FileSystemEntryProvider} from "./assets/providers/FileSystemEntryProvider.tsx";
+import {FavoritesProvider} from "./assets/providers/FavoritesProvider.tsx";
 
 
 ReactDOM.createRoot($("#root")[0]!).render(
@@ -19,9 +20,11 @@ ReactDOM.createRoot($("#root")[0]!).render(
         <BrowserRouter>
             <ThemeProvider>
                 <AuthProvider>
-                    <FileSystemEntryProvider>
-                        <MainContentRenderer/>
-                    </FileSystemEntryProvider>
+                    <FavoritesProvider>
+                        <FileSystemEntryProvider>
+                            <MainContentRenderer/>
+                        </FileSystemEntryProvider>
+                    </FavoritesProvider>
                 </AuthProvider>
             </ThemeProvider>
         </BrowserRouter>
