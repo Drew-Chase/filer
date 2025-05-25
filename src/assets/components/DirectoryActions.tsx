@@ -3,10 +3,12 @@ import {useCallback, useState} from "react";
 import {Icon} from "@iconify-icon/react";
 import {addToast, cn, Spinner, Tooltip} from "@heroui/react";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
+import {useFavorites} from "../providers/FavoritesProvider.tsx";
 
 export function DirectoryActions()
 {
     const {
+        currentPath,
         loading,
         selectedEntries,
         downloadSelected,
@@ -15,6 +17,7 @@ export function DirectoryActions()
         askUploadEntry,
         askCreateNewFileEntry
     } = useFileSystemEntry();
+    const {addFavorite, removeFavorite, isFavorited} = useFavorites();
 
     // Add a state to track if the parent container is being hovered
     const [isHovering, setIsHovering] = useState(false);
@@ -56,7 +59,7 @@ export function DirectoryActions()
                 onPress={downloadSelected}
                 isPositiveCountRequired={true}
                 isVisible={alwaysShow || isHovering}
-                index={7}
+                index={8}
             />
             <DirectoryActionButton
                 count={selectedEntries.size}
@@ -65,7 +68,7 @@ export function DirectoryActions()
                 onPress={downloadSelected}
                 isPositiveCountRequired={true}
                 isVisible={alwaysShow || isHovering}
-                index={6}
+                index={7}
             />
             <DirectoryActionButton
                 count={selectedEntries.size}
@@ -74,7 +77,7 @@ export function DirectoryActions()
                 onPress={downloadSelected}
                 isPositiveCountRequired={true}
                 isVisible={alwaysShow || isHovering}
-                index={5}
+                index={6}
             />
             <DirectoryActionButton
                 count={selectedEntries.size}
@@ -84,7 +87,7 @@ export function DirectoryActions()
                 isPositiveCountRequired={true}
                 isVisible={alwaysShow || isHovering}
                 color={"danger"}
-                index={4}
+                index={5}
             />
 
             <DirectoryActionButton
@@ -94,13 +97,30 @@ export function DirectoryActions()
                 isPositiveCountRequired={false}
                 showCount={false}
                 isVisible={alwaysShow || isHovering}
-                index={3}
+                index={4}
             />
 
             <DirectoryActionButton
                 icon={"iconamoon:cloud-upload-fill"}
                 tooltip={`Upload a file or directory`}
                 onPress={askUploadEntry}
+                isPositiveCountRequired={false}
+                showCount={false}
+                isVisible={alwaysShow || isHovering}
+                index={3}
+            />
+
+            <DirectoryActionButton
+                icon={"mage:star-fill"}
+                tooltip={`Toggle Favorite directory`}
+                onPress={() =>
+                {
+                    if (currentPath == null) return;
+                    let name = currentPath.replace(/\/+$/, "").split("/").pop();
+                    if (name == null) return;
+                    if (isFavorited(currentPath)) removeFavorite(currentPath);
+                    else addFavorite({path: currentPath, name: name});
+                }}
                 isPositiveCountRequired={false}
                 showCount={false}
                 isVisible={alwaysShow || isHovering}
