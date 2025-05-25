@@ -199,7 +199,7 @@ function DirectoryActionButton(props: DirectoryActionButtonProps)
                     animate={{
                         x: props.isVisible ? 0 : (props.index === 0 ? 0 : 43 * props.index),
                         scale: props.isVisible ? 1 : (props.index === 0 ? 1 : 0.8),
-                        opacity: props.isLoading ? 0 : (props.isVisible ? 1 : (props.index === 0 ? 1 : props.index < 5 ? 0.5 : 0)),
+                        opacity: props.isLoading ? 0 : (props.isVisible ? 1 : (props.index === 0 ? 1 : props.index < 4 ? 0.5 : 0)),
                         rotate: props.isLoading ? 360 : 0
                     }}
                     transition={{
