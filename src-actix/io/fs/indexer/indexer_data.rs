@@ -32,6 +32,10 @@ pub async fn index_all_files() -> Result<()> {
     info!("Starting file indexing...");
     let start_time = std::time::Instant::now();
 
+    let config = Configuration::get();
+    let is_ignored_path_whitelist = config.filter_mode_whitelist;
+    let ignored_paths = &config.filter;
+
     // Create a database connection pool
     let pool = indexer::indexer_db::create_pool().await?;
 
@@ -57,6 +61,19 @@ pub async fn index_all_files() -> Result<()> {
             // Skip directories, only index files
             if entry.file_type().is_file() {
                 let path = entry.path();
+                let path_str = path.to_string_lossy().replace('\\', "/");
+
+                // Check if the path matches any ignored patterns
+                let matches_pattern = ignored_paths.iter().any(|ignored| {
+                    let pattern = glob::Pattern::new(ignored).unwrap_or_default();
+                    pattern.matches(&path_str)
+                });
+
+                if (!is_ignored_path_whitelist && matches_pattern)
+                    || (is_ignored_path_whitelist && !matches_pattern)
+                {
+                    continue;
+                }
 
                 match IndexerData::from_path(path) {
                     Ok(data) => {
@@ -156,12 +173,12 @@ async fn insert_batch(batch: &[IndexerData], pool: &SqlitePool) -> Result<()> {
 pub async fn start_file_watcher() -> Result<()> {
     info!("Starting file watcher...");
 
-    let config = Config::default()
+    let notify_config = Config::default()
         .with_poll_interval(Duration::from_secs(2))
         .with_compare_contents(false);
 
     let (tx, rx) = std::sync::mpsc::channel();
-    let watcher = RecommendedWatcher::new(tx, config)?;
+    let watcher = RecommendedWatcher::new(tx, notify_config)?;
 
     let watcher_state = Arc::new(Mutex::new(FileWatcherState { watcher }));
 
