@@ -78,7 +78,7 @@ impl Default for Configuration {
         let cwd = cwd.as_str().replace('\\', "/");
         let cwd = format!("{}/**/*", cwd);
         let current_exe_path = format!("{}/**/*", current_exe_path);
-        let ignored_paths = vec![
+        let mut ignored_paths = vec![
             "/dev/**/*",
             "/proc/**/*",
             "/sys/**/*",
@@ -108,9 +108,12 @@ impl Default for Configuration {
             "**/Tmp/**",
             "**/tmp/**",
             "**/temp/**",
-            current_exe_path.as_str(),
-            cwd.as_str(),
+            current_exe_path.as_str()
         ];
+        
+        if current_exe_path != cwd {
+            ignored_paths.push(cwd.as_str())
+        }
 
         let ignored_paths = ignored_paths.into_iter().map(String::from).collect();
 
