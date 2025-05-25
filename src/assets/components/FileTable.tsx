@@ -6,6 +6,7 @@ import FileEntryIcon from "./FileEntryIcon.tsx";
 import {motion} from "framer-motion";
 import {useEffect, useState} from "react";
 import {useFavorites} from "../providers/FavoritesProvider.tsx";
+import {useLocation} from "react-router-dom";
 
 export default function FileTable()
 {
@@ -24,6 +25,7 @@ export default function FileTable()
         setSelectedEntries,
         currentDirectoryFilter
     } = useFileSystemEntry();
+    const {pathname} = useLocation();
 
 
     const MAX_ITEMS_PER_PAGE = 25;
@@ -36,6 +38,11 @@ export default function FileTable()
         setPageItems(data.entries.filter(i => i.filename.toLowerCase().includes(currentDirectoryFilter.toLowerCase())).slice((currentPage - 1) * MAX_ITEMS_PER_PAGE, currentPage * MAX_ITEMS_PER_PAGE));
         setSelectedEntries(new Set());
     }, [data, currentPage, sortDescriptor, currentDirectoryFilter]);
+
+    useEffect(() =>
+    {
+        setCurrentPage(1);
+    }, [pathname]);
 
     return (
         <>
@@ -198,7 +205,6 @@ export default function FileTable()
                 <Pagination
                     total={Math.ceil(data.entries.length / MAX_ITEMS_PER_PAGE)}
                     page={currentPage}
-                    initialPage={currentPage}
                     onChange={setCurrentPage}
                     size={"sm"}
 
