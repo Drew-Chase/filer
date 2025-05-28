@@ -5,3 +5,4 @@ mod filesystem_data;
 mod filesystem_test;
 mod download_parameters;
 pub mod indexer;
+pub mod archive_wrapper;

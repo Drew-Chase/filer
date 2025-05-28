@@ -1,5 +1,6 @@
 use crate::auth::auth_middleware::Authentication;
 use crate::helpers::http_error::Result;
+use crate::io::fs::archive_wrapper;
 use crate::io::fs::download_parameters::DownloadParameters;
 use crate::io::fs::filesystem_data::{FilesystemData, FilesystemEntry};
 use crate::io::fs::indexer::indexer_data;
@@ -9,11 +10,6 @@ use actix_web::web::Query;
 use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
 use actix_web_lab::__reexports::futures_util::StreamExt;
 use actix_web_lab::sse::{Data, Event, Sse};
-use archflow::compress::FileOptions;
-use archflow::compress::tokio::archive::ZipArchive;
-use archflow::compression::CompressionMethod;
-use archflow::error::ArchiveError;
-use archflow::types::FileDateTime;
 use log::*;
 use serde_json::json;
 use std::collections::HashMap;
@@ -91,6 +87,11 @@ async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> 
 
 #[get("/download")]
 async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
+    use archflow::compress::FileOptions;
+    use archflow::compress::tokio::archive::ZipArchive;
+    use archflow::compression::CompressionMethod;
+    use archflow::error::ArchiveError;
+    use archflow::types::FileDateTime;
     let items: Vec<PathBuf> = query
         .items
         .iter()
@@ -625,6 +626,39 @@ async fn get_indexer_stats() -> Result<impl Responder> {
     }
 }
 
+#[post("/archive")]
+async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
+    let filenames = body
+        .get("entries")
+        .and_then(|entries| entries.as_array())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|e| e.as_str().map(String::from))
+                .collect::<Vec<_>>()
+        })
+        .ok_or_else(|| anyhow::anyhow!("Invalid entries array"))?;
+    let cwd = PathBuf::from(
+        body.get("cwd")
+            .and_then(|cwd| cwd.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Invalid cwd"))?,
+    );
+    let archive_file_name = body
+        .get("filename")
+        .and_then(|filename| filename.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
+    let pathed_entries = filenames
+        .iter()
+        .map(|filename| cwd.join(filename))
+        .collect::<Vec<_>>();
+    let archive_path = cwd.join(archive_file_name);
+    archive_wrapper::archive(archive_path, pathed_entries)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
 // Helper function to format file sizes in a human-readable format
 fn format_size(size: u64) -> String {
     const KB: u64 = 1024;
@@ -650,6 +684,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         web::scope("/filesystem")
             .wrap(Authentication::new())
             .service(get_filesystem_entries)
+            .service(archive_paths)
             .service(download)
             .service(search)
             .service(upload)
