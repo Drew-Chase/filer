@@ -65,14 +65,11 @@ pub async fn archive(archive_path: impl AsRef<Path>, entries: Vec<PathBuf>, send
                     archive.start_file(archive_path_str, options)?;
 
                     let file = std::fs::File::open(path)?;
-                    let metadata = file.metadata()?;
-                    let file_size = metadata.len();
                     let mut reader = BufReader::with_capacity(8192, file);
                     
                     // Use a custom buffer to track progress
                     let mut buffer = [0; 4096]; // 4KB buffer
                     let mut last_progress_update = std::time::Instant::now();
-                    let mut file_bytes_read = 0u64;
                     
                     loop {
                         let bytes_read = match reader.read(&mut buffer) {
@@ -83,10 +80,9 @@ pub async fn archive(archive_path: impl AsRef<Path>, entries: Vec<PathBuf>, send
                         
                         archive.write_all(&buffer[..bytes_read])?;
                         
-                        file_bytes_read += bytes_read as u64;
                         processed_bytes += bytes_read as u64;
                         
-                        // Send progress update after processing 4KB or more
+                        // Send progress update with rate limiting (max once per 100ms)
                         let now = std::time::Instant::now();
                         if now.duration_since(last_progress_update).as_millis() > 100 {
                             let progress = if total_bytes > 0 {
@@ -114,14 +110,11 @@ pub async fn archive(archive_path: impl AsRef<Path>, entries: Vec<PathBuf>, send
             archive.start_file(archive_path, options)?;
 
             let file = std::fs::File::open(&entry)?;
-            let metadata = file.metadata()?;
-            let file_size = metadata.len();
             let mut reader = BufReader::with_capacity(8192, file);
             
             // Use a custom buffer to track progress
             let mut buffer = [0; 4096]; // 4KB buffer
             let mut last_progress_update = std::time::Instant::now();
-            let mut file_bytes_read = 0u64;
             
             loop {
                 let bytes_read = match reader.read(&mut buffer) {
@@ -132,10 +125,9 @@ pub async fn archive(archive_path: impl AsRef<Path>, entries: Vec<PathBuf>, send
                 
                 archive.write_all(&buffer[..bytes_read])?;
                 
-                file_bytes_read += bytes_read as u64;
                 processed_bytes += bytes_read as u64;
                 
-                // Send progress update after processing 4KB or more, with rate limiting
+                // Send progress update with rate limiting (max once per 100ms)
                 let now = std::time::Instant::now();
                 if now.duration_since(last_progress_update).as_millis() > 100 {
                     let progress = if total_bytes > 0 {
@@ -154,7 +146,7 @@ pub async fn archive(archive_path: impl AsRef<Path>, entries: Vec<PathBuf>, send
         }
     }
 
-    // Send completion message
+    // Send the completion message
     let _ = sender.send(Event::from(sse::Data::new("{ \"progress\": 100.0, \"status\": \"complete\" }"))).await;
     
     archive.finish()?;
