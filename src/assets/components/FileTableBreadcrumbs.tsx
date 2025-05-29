@@ -1,5 +1,6 @@
 import {BreadcrumbItem, Breadcrumbs} from "@heroui/react";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
+import {useEffect} from "react";
 
 type FileTableBreadcrumbsProperties = {
     onNavigate?: (path: string) => void;
@@ -10,23 +11,40 @@ export default function FileTableBreadcrumbs(props: FileTableBreadcrumbsProperti
 {
     const {navigate} = useFileSystemEntry();
     const {paths, onNavigate} = props;
+    useEffect(() =>
+    {
+        console.log("Paths updated", paths);
+    }, [paths]);
     return (
         <Breadcrumbs variant={"bordered"}>
-            {paths.slice(0, paths.length - 1).map((path, index) => (
+            {(!paths.length || paths.every(p => p.trim() === "")) ? (
                 <BreadcrumbItem
-                    key={path}
+                    key="root"
                     onPress={() =>
                     {
-                        if (index >= paths.length)
-                            return;
-                        let newPath = paths.slice(0, index + 1).join("/");
-                        if (onNavigate) onNavigate(newPath);
-                        else navigate(newPath);
+                        if (onNavigate) onNavigate("/");
+                        else navigate("/");
                     }}
                 >
-                    {path === "" || path === "/" ? "Root" : path}
+                    Root
                 </BreadcrumbItem>
-            ))}
+            ) : (
+                paths.filter(i => i.trim() !== "").map((path, index) => (
+                    <BreadcrumbItem
+                        key={path}
+                        onPress={() =>
+                        {
+                            if (index >= paths.length)
+                                return;
+                            let newPath = paths.slice(0, index + 1).join("/");
+                            if (onNavigate) onNavigate(newPath);
+                            else navigate(newPath);
+                        }}
+                    >
+                        {path === "" || path === "/" ? "Root" : path}
+                    </BreadcrumbItem>
+                ))
+            )}
         </Breadcrumbs>
     );
 }
