@@ -139,7 +139,7 @@ export function DirectoryActions()
                 isLoading={loading}
             />
             <DirectoryActionButton
-                icon={"icon-park-solid:right-expand"}
+                icon={"mage:pin-fill"}
                 tooltip={"Toggle auto collapse"}
                 onPress={toggleAlwaysShow}
                 showCount={false}
