@@ -1,6 +1,5 @@
 import {BreadcrumbItem, Breadcrumbs} from "@heroui/react";
 import {useFileSystemEntry} from "../providers/FileSystemEntryProvider.tsx";
-import {useEffect} from "react";
 
 type FileTableBreadcrumbsProperties = {
     onNavigate?: (path: string) => void;
@@ -11,10 +10,7 @@ export default function FileTableBreadcrumbs(props: FileTableBreadcrumbsProperti
 {
     const {navigate} = useFileSystemEntry();
     const {paths, onNavigate} = props;
-    useEffect(() =>
-    {
-        console.log("Paths updated", paths);
-    }, [paths]);
+
     return (
         <Breadcrumbs variant={"bordered"}>
             {(!paths.length || paths.every(p => p.trim() === "")) ? (
