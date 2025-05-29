@@ -129,14 +129,11 @@ export class FileSystem
     }
 
 
-    static async copyEntry(sourcePath: string, destinationPath: string): Promise<void>
+    static async copyEntry(sourcePaths: string[], destinationPath: string): Promise<void>
     {
         const response = await fetch("/api/filesystem/copy", {
             method: "POST",
-            headers: {
-                "X-Filesystem-Path": sourcePath,
-                "X-NewFilesystem-Path": destinationPath
-            }
+            body: JSON.stringify({entries: sourcePaths, path: destinationPath}),
         });
 
         if (!response.ok)
@@ -146,14 +143,11 @@ export class FileSystem
         }
     }
 
-    static async moveEntry(sourcePath: string, destinationPath: string): Promise<void>
+    static async moveEntry(sourcePaths: string[], destinationPath: string): Promise<void>
     {
         const response = await fetch("/api/filesystem/move", {
             method: "POST",
-            headers: {
-                "X-Filesystem-Path": sourcePath,
-                "X-NewFilesystem-Path": destinationPath
-            }
+            body: JSON.stringify({entries: sourcePaths, path: destinationPath}),
         });
 
         if (!response.ok)

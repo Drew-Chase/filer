@@ -216,7 +216,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
 
         try
         {
-            await FileSystem.copyEntry(sourcePath, destinationPath);
+            await FileSystem.copyEntry([sourcePath], destinationPath);
             // Refresh the current directory to show the changes
             refresh();
         } catch (error)
@@ -232,7 +232,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
 
         try
         {
-            await FileSystem.moveEntry(sourcePath, destinationPath);
+            await FileSystem.moveEntry([sourcePath], destinationPath);
             // Refresh the current directory to show the changes
             refresh();
         } catch (error)

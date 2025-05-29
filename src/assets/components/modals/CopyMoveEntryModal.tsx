@@ -1,5 +1,5 @@
 import {Button, Checkbox, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {Icon} from "@iconify-icon/react";
 import {FileSystem, FilesystemData} from "../../ts/filesystem.ts";
 import {useFileSystemEntry} from "../../providers/FileSystemEntryProvider.tsx";
@@ -14,6 +14,24 @@ export default function CopyMoveEntryModal(props: CopyMoveEntryProperties)
 {
     const [isMove, setIsMove] = useState(true);
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
+    const {currentPath, selectedEntries, refresh} = useFileSystemEntry();
+
+    const process = useCallback(async () =>
+    {
+        if (selectedPath === null || selectedPath.replace(/\\/g, "/").trim().replace(/\/+$/, "") === currentPath?.replace(/\\/g, "/")?.trim().replace(/\/+$/, "")) return;
+        if (currentPath == null) return;
+        if (isMove)
+        {
+            await FileSystem.moveEntry([...selectedEntries].map(i => i.path), currentPath);
+        }else{
+            await FileSystem.copyEntry([...selectedEntries].map(i => i.path), currentPath);
+        }
+
+        refresh();
+        props.onClose();
+
+    }, [selectedPath]);
+
     return (
         <Modal
             isOpen={props.isOpen}
@@ -37,7 +55,10 @@ export default function CopyMoveEntryModal(props: CopyMoveEntryProperties)
                             <FileTable selectedItem={selectedPath} onSelectionChange={setSelectedPath}/>
                         </ModalBody>
                         <ModalFooter>
-                            <Button onPress={onClose} color={"secondary"}>{isMove ? "Move" : "Copy"}</Button>
+                            {selectedPath === null || selectedPath.replace(/\\/g, "/").trim().replace(/\/+$/, "") === currentPath?.replace(/\\/g, "/")?.trim().replace(/\/+$/, "") ?
+                                <Button color={"secondary"} isDisabled>{isMove ? "Move" : "Copy"}</Button> :
+                                <Button onPress={process} color={"secondary"}>{isMove ? "Move" : "Copy"} to {selectedPath.replace(/\\/g, "/").split("/").pop()}</Button>
+                            }
                             <Button onPress={onClose} variant={"light"} color={"danger"}>Cancel</Button>
                         </ModalFooter>
                     </>
@@ -64,16 +85,20 @@ function FileTable(props: FileTableProperties)
         setIsLoading(true);
         FileSystem
             .getEntries(currentPath)
-            .then(setData)
+            .then(data =>
+            {
+                setData({parent: data.parent, entries: data.entries.filter(i => i.is_dir)});
+            })
             .finally(() =>
             {
+                props.onSelectionChange(currentPath);
                 setIsLoading(false);
             });
     }, [currentPath]);
 
     return (
         <>
-            <FileTableBreadcrumbs paths={currentPath.split("/")} onNavigate={path => setCurrentPath(path)}/>
+            <FileTableBreadcrumbs paths={currentPath.replace(/\\/g, "/").split("/")} onNavigate={path => setCurrentPath(path)}/>
             <Table
                 hideHeader
                 removeWrapper
@@ -107,7 +132,7 @@ function FileTable(props: FileTableProperties)
                     <TableColumn key={"filename"} className="w-full" allowsSorting aria-label="Name column">Name</TableColumn>
                 </TableHeader>
                 <TableBody isLoading={isLoading} loadingContent={<Spinner color={"primary"}/>}>
-                    {data.entries.filter(i => i.is_dir).map((entry, index) => (
+                    {data.entries.map((entry, index) => (
                         <TableRow key={index} aria-label={`File entry: ${entry.filename}`}>
                             <TableCell className="font-medium" aria-label="File name" onDoubleClick={() =>
                             {

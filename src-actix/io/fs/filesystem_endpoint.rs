@@ -392,144 +392,126 @@ async fn upload(mut payload: web::Payload, request: HttpRequest) -> impl Respond
 }
 
 #[post("/copy")]
-async fn copy_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
-    // Extract a source path
-    let source_path = match request.headers().get("X-Filesystem-Path") {
-        Some(header) => match header.to_str() {
-            Ok(path_str) => PathBuf::from(path_str),
-            Err(_) => {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "X-Filesystem-Path header is not a valid string"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "X-Filesystem-Path header is missing"
-            })));
-        }
-    };
+async fn copy_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
+    // Extract source paths
+    let source_paths = body
+        .get("entries")
+        .and_then(|entries| entries.as_array())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|e| e.as_str().map(PathBuf::from))
+                .collect::<Vec<_>>()
+        })
+        .ok_or_else(|| anyhow::anyhow!("Invalid entries array"))?;
 
     // Extract destination path
-    let dest_path = match request.headers().get("X-NewFilesystem-Path") {
-        Some(header) => match header.to_str() {
-            Ok(path_str) => PathBuf::from(path_str),
-            Err(_) => {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "X-NewFilesystem-Path header is not a valid string"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "X-NewFilesystem-Path header is missing"
+    let dest_path = PathBuf::from(
+        body.get("path")
+            .and_then(|path| path.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?,
+    );
+
+    // Verify source paths exist
+    for source_path in &source_paths {
+        if !source_path.exists() {
+            return Ok(HttpResponse::NotFound().json(json!({
+                "error": format!("Source path does not exist: {}", source_path.display())
             })));
         }
-    };
-
-    // Verify source exists
-    if !source_path.exists() {
-        return Ok(HttpResponse::NotFound().json(json!({
-            "error": "Source path does not exist"
-        })));
     }
 
-    // Copy the fs entry
-    if source_path.is_dir() {
-        // Create a copy function for recursive directory copy
-        fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
-            std::fs::create_dir_all(&dst)?;
-            for entry in std::fs::read_dir(src)? {
-                let entry = entry?;
-                let ty = entry.file_type()?;
-                let src_path = entry.path();
-                let dst_path = dst.as_ref().join(entry.file_name());
+    // Copy each source to destination
+    for source_path in source_paths {
+        let dest = dest_path.join(source_path.file_name().unwrap_or_default());
 
-                if ty.is_dir() {
-                    copy_dir_all(&src_path, &dst_path)?;
-                } else {
-                    std::fs::copy(&src_path, &dst_path)?;
+        if source_path.is_dir() {
+            // Create a copy function for recursive directory copy
+            fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
+                std::fs::create_dir_all(&dst)?;
+                for entry in std::fs::read_dir(src)? {
+                    let entry = entry?;
+                    let ty = entry.file_type()?;
+                    let src_path = entry.path();
+                    let dst_path = dst.as_ref().join(entry.file_name());
+
+                    if ty.is_dir() {
+                        copy_dir_all(&src_path, &dst_path)?;
+                    } else {
+                        std::fs::copy(&src_path, &dst_path)?;
+                    }
                 }
+                Ok(())
             }
-            Ok(())
-        }
 
-        if let Err(e) = copy_dir_all(&source_path, &dest_path) {
-            return Ok(HttpResponse::InternalServerError().json(json!({
-                "error": format!("Failed to copy directory: {}", e)
-            })));
-        }
-    } else {
-        // Copy file
-        if let Err(e) = std::fs::copy(&source_path, &dest_path) {
-            return Ok(HttpResponse::InternalServerError().json(json!({
-                "error": format!("Failed to copy file: {}", e)
-            })));
+            if let Err(e) = copy_dir_all(&source_path, &dest) {
+                return Ok(HttpResponse::InternalServerError().json(json!({
+                    "error": format!("Failed to copy directory: {}", e)
+                })));
+            }
+        } else {
+            // Copy file
+            if let Err(e) = std::fs::copy(&source_path, &dest) {
+                return Ok(HttpResponse::InternalServerError().json(json!({
+                    "error": format!("Failed to copy file: {}", e)
+                })));
+            }
         }
     }
 
     Ok(HttpResponse::Ok().json(json!({
         "status": "success",
-        "message": "Entry copied successfully"
+        "message": "Entries copied successfully"
     })))
 }
 
 #[post("/move")]
-async fn move_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
-    // Extract a source path
-    let source_path = match request.headers().get("X-Filesystem-Path") {
-        Some(header) => match header.to_str() {
-            Ok(path_str) => PathBuf::from(path_str),
-            Err(_) => {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "X-Filesystem-Path header is not a valid string"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "X-Filesystem-Path header is missing"
-            })));
-        }
-    };
+async fn move_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
+    // Extract source paths
+    let source_paths = body
+        .get("entries")
+        .and_then(|entries| entries.as_array())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|e| e.as_str().map(PathBuf::from))
+                .collect::<Vec<_>>()
+        })
+        .ok_or_else(|| anyhow::anyhow!("Invalid entries array"))?;
 
     // Extract destination path
-    let dest_path = match request.headers().get("X-NewFilesystem-Path") {
-        Some(header) => match header.to_str() {
-            Ok(path_str) => PathBuf::from(path_str),
-            Err(_) => {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "X-NewFilesystem-Path header is not a valid string"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "X-NewFilesystem-Path header is missing"
+    let dest_path = PathBuf::from(
+        body.get("path")
+            .and_then(|path| path.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?,
+    );
+
+    // Verify source paths exist
+    for source_path in &source_paths {
+        if !source_path.exists() {
+            return Ok(HttpResponse::NotFound().json(json!({
+                "error": format!("Source path does not exist: {}", source_path.display())
             })));
         }
-    };
-
-    // Verify source exists
-    if !source_path.exists() {
-        return Ok(HttpResponse::NotFound().json(json!({
-            "error": "Source path does not exist"
-        })));
     }
 
-    // Move/rename is the same operation in fs terms
-    if let Err(e) = std::fs::rename(&source_path, &dest_path) {
-        return Ok(HttpResponse::InternalServerError().json(json!({
-            "error": format!("Failed to move entry: {}", e)
-        })));
+    // Move each source to destination
+    for source_path in source_paths {
+        let dest = dest_path.join(source_path.file_name().unwrap_or_default());
+
+        // Move/rename is the same operation in fs terms
+        if let Err(e) = std::fs::rename(&source_path, &dest) {
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": format!("Failed to move entry: {}", e)
+            })));
+        }
     }
 
     Ok(HttpResponse::Ok().json(json!({
         "status": "success",
-        "message": "Entry moved successfully"
+        "message": "Entries moved successfully"
     })))
 }
-
 #[delete("/")]
 async fn delete_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
     let paths: Vec<PathBuf> = match request.headers().get("X-Filesystem-Paths") {
@@ -666,7 +648,7 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
         archive_wrapper::archive(archive_path, pathed_entries, tracker)
             .await
             .map_err(|e| anyhow::anyhow!(e))?;
-    }else{
+    } else {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Invalid tracker id"
         })));
