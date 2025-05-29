@@ -47,7 +47,7 @@ export default function NewFileEntryModal(props: NewFileEntryProperties)
                             inputWrapper: "bg-white/20 data-[hover]:bg-white/15 group-data-[focus]:bg-white/10 group-data-[focus]:outline-primary outline-2 border-transparent"
                         }}
                     />
-                    <div className={"flex flex-row items-center justify-between cursor-pointer hover:bg-white/10 p-2 rounded-md"} onClick={() => setIsDirectory(!isDirectory)}>
+                    <div className={"flex flex-row items-center justify-between cursor-pointer hover:bg-white/10 p-2 rounded-md"} onClick={() => setIsDirectory(prev=>!prev)}>
                         <p>Create Directory</p>
                         <Checkbox isSelected={isDirectory} onValueChange={setIsDirectory} radius={"full"}/>
                     </div>
