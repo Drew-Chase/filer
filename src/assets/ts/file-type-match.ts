@@ -473,3 +473,48 @@ export const extensionFileTypeMap: FileTypeMap[] = [
         description: "Binary Data"
     }
 ];
+
+export function getFileType(path: string): FileTypeMap | undefined
+{
+    let extension = getFileExtension(path);
+    if (extension)
+        return extensionFileTypeMap.find(e => e.extensions.includes(extension)) ?? undefined;
+    return undefined;
+}
+
+export function getFileExtension(path: string): string | undefined
+{
+    console.log(`Processing file path: ${path}`);
+    const filename = path.replace(/\\/g, "/").split("/").pop()?.toLowerCase().trim();
+    if (!filename)
+    {
+        console.log("No filename found");
+        return undefined;
+    }
+    let multi_extension = filename.split(".").slice(1);
+    let extension = multi_extension.length > 0 ? multi_extension.join(".") : "";
+    console.log(`Checking multi-extension: ${extension}`);
+    let multi_extension_match = extensionFileTypeMap.find(e => e.extensions.includes(extension));
+    if (multi_extension_match)
+    {
+        console.log(`Found multi-extension match: ${extension}`);
+        return extension;
+    } else
+    {
+        let single_extension = filename.split(".").pop()?.toLowerCase().trim();
+        if (!single_extension)
+        {
+            console.log("No single extension found");
+            return undefined;
+        }
+        console.log(`Checking single extension: ${single_extension}`);
+        let single_extension_match = extensionFileTypeMap.find(e => e.extensions.includes(single_extension));
+        if (single_extension_match)
+        {
+            console.log(`Found single extension match: ${single_extension}`);
+            return single_extension;
+        }
+        console.log("No extension match found");
+    }
+    return undefined;
+}

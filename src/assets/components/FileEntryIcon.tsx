@@ -1,10 +1,10 @@
 import {FilesystemEntry} from "../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
+import {getFileExtension} from "../ts/file-type-match.ts";
 
 export default function FileEntryIcon({entry}: { entry: FilesystemEntry })
 {
-    const extensions = entry.filename.toLowerCase().trim().split(".").slice(1);
-    let extension = extensions.length > 0 ? extensions.join(".") : "";
+    const extension = getFileExtension(entry.filename);
     switch (extension)
     {
         /// Excel File Extensions
