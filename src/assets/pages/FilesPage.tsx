@@ -5,11 +5,13 @@ import {DirectoryActions} from "../components/DirectoryActions.tsx";
 import {motion} from "framer-motion";
 import TableFind from "../components/TableFind.tsx";
 import FavoritesPanel from "../components/favorites/FavoritesPanel.tsx";
+import {useWindow} from "../providers/WindowProvider.tsx";
 
 
 export default function FilesPage()
 {
     const {currentPath} = useFileSystemEntry();
+    const {width} = useWindow();
 
     return (
         <div className={"flex flex-row gap-4 mx-4"}>
@@ -24,7 +26,7 @@ export default function FilesPage()
                         <div className={"flex flex-row gap-4 items-center justify-between"}>
                             <FileTableBreadcrumbs paths={decodeURIComponent(currentPath).split("/")}/>
                             <TableFind/>
-                            <DirectoryActions/>
+                            {width > 600 && <DirectoryActions/>}
                         </div>
 
                         <motion.div className="flex flex-row gap-2"

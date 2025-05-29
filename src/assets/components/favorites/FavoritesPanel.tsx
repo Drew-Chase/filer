@@ -7,12 +7,14 @@ import {useEffect, useState} from "react";
 import {Icon} from "@iconify-icon/react";
 import {closestCenter, DndContext, DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors} from "@dnd-kit/core";
 import {arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy} from "@dnd-kit/sortable";
+import {useWindow} from "../../providers/WindowProvider.tsx";
 
 export default function FavoritesPanel()
 {
     const {favorites, setFavorites} = useFavorites();
     const [isExpanded, setIsExpanded] = useState(localStorage.getItem("favorites-panel-expanded") !== "false");
     const sensor = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, {coordinateGetter: sortableKeyboardCoordinates}));
+    const {width} = useWindow();
 
     const handleDragEnd = (event: DragEndEvent) =>
     {
@@ -38,7 +40,7 @@ export default function FavoritesPanel()
             <motion.div
                 initial={{opacity: 0, y: -20, width: 0, padding: 0}}
                 exit={{opacity: 0, y: -20, width: 0, padding: 0}}
-                animate={{opacity: favorites.length === 0 ? 0 : 1, y: 0, width: favorites.length === 0 ? 0 : isExpanded ? 400 : 40, padding: favorites.length === 0 ? 0 : isExpanded ? "16px" : "4px"}}
+                animate={{opacity: favorites.length === 0 || width < 950 ? 0 : 1, y: 0, width: favorites.length === 0 || width < 950 ? 0 : isExpanded ? 400 : 40, padding: favorites.length === 0 || width < 950 ? 0 : isExpanded ? "16px" : "4px"}}
                 transition={{duration: 1, delay: 0, type: "spring", ease: "easeInOut"}}
                 className={
                     cn(

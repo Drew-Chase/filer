@@ -13,20 +13,23 @@ import FilesPage from "./assets/pages/FilesPage.tsx";
 import ErrorPage from "./assets/pages/ErrorPage.tsx";
 import {FileSystemEntryProvider} from "./assets/providers/FileSystemEntryProvider.tsx";
 import {FavoritesProvider} from "./assets/providers/FavoritesProvider.tsx";
+import {WindowProvider} from "./assets/providers/WindowProvider.tsx";
 
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
         <BrowserRouter>
-            <ThemeProvider>
-                <AuthProvider>
-                    <FavoritesProvider>
-                        <FileSystemEntryProvider>
-                            <MainContentRenderer/>
-                        </FileSystemEntryProvider>
-                    </FavoritesProvider>
-                </AuthProvider>
-            </ThemeProvider>
+            <WindowProvider>
+                <ThemeProvider>
+                    <AuthProvider>
+                        <FavoritesProvider>
+                            <FileSystemEntryProvider>
+                                <MainContentRenderer/>
+                            </FileSystemEntryProvider>
+                        </FavoritesProvider>
+                    </AuthProvider>
+                </ThemeProvider>
+            </WindowProvider>
         </BrowserRouter>
     </React.StrictMode>
 );

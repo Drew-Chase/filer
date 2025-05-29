@@ -7,6 +7,7 @@ import {motion} from "framer-motion";
 import {useEffect, useState} from "react";
 import {useFavorites} from "../providers/FavoritesProvider.tsx";
 import {useLocation} from "react-router-dom";
+import {useWindow} from "../providers/WindowProvider.tsx";
 
 export default function FileTable()
 {
@@ -26,6 +27,8 @@ export default function FileTable()
     } = useFileSystemEntry();
     const {pathname} = useLocation();
 
+    const {width} = useWindow();
+
     const MAX_ITEMS_PER_PAGE = 25;
     const [pageItems, setPageItems] = useState<FilesystemEntry[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -42,6 +45,13 @@ export default function FileTable()
         setCurrentPage(1);
     }, [pathname]);
 
+    useEffect(() =>
+    {
+        if(width < 850){
+            setSelectedEntries(new Set());
+        }
+    }, [width]);
+
     return (
         <>
             <Table
@@ -56,7 +66,7 @@ export default function FileTable()
                 }}
                 sortDescriptor={sortDescriptor}
                 onSortChange={onSortChange}
-                selectionMode={data.entries.length > 0 ? "multiple" : "none"}
+                selectionMode={data.entries.length > 0 && width > 850 ? "multiple" : "none"}
                 selectedKeys={new Set(
                     Array.from(selectedEntries).map(selectedEntry =>
                     {
@@ -88,10 +98,10 @@ export default function FileTable()
             >
                 <TableHeader>
                     <TableColumn key={"filename"} className="w-full" allowsSorting aria-label="Name column">Name</TableColumn>
-                    <TableColumn key={"is_dir"} className="min-w-32" allowsSorting aria-label="Type column">Type</TableColumn>
-                    <TableColumn key={"size"} className="min-w-32" allowsSorting aria-label="Size column">Size</TableColumn>
-                    <TableColumn key={"creation_date"} className="min-w-32" allowsSorting aria-label="Creation date column">Creation</TableColumn>
-                    <TableColumn key={"last_modified"} className="min-w-32" allowsSorting aria-label="Modification date column">Modification</TableColumn>
+                    <TableColumn key={"is_dir"} className="min-w-32" allowsSorting aria-label="Type column" hidden={width < 750}>Type</TableColumn>
+                    <TableColumn key={"size"} className="min-w-32" allowsSorting aria-label="Size column" hidden={width < 550}>Size</TableColumn>
+                    <TableColumn key={"creation_date"} className="min-w-32" allowsSorting aria-label="Creation date column" hidden={width < 1240}>Creation</TableColumn>
+                    <TableColumn key={"last_modified"} className="min-w-32" allowsSorting aria-label="Modification date column" hidden={width < 1240}>Modification</TableColumn>
                     <TableColumn className="text-right" aria-label="Actions column">Actions</TableColumn>
                 </TableHeader>
                 <TableBody isLoading={loading} loadingContent={<Spinner color={"primary"}/>}>
@@ -124,10 +134,10 @@ export default function FileTable()
                                     </div>
                                 }
                             </TableCell>
-                            <TableCell aria-label="Entry type">{entry.file_type ?? "Unknown Entry Type"}</TableCell>
-                            <TableCell aria-label="File size">{entry.is_dir ? "-" : FileSystem.formatSize(entry.size)}</TableCell>
-                            <TableCell aria-label="Creation date">{entry.is_dir ? "-" : entry.creation_date.toLocaleDateString()}</TableCell>
-                            <TableCell aria-label="Modification date">{entry.is_dir ? "-" : entry.last_modified.toLocaleDateString()}</TableCell>
+                            <TableCell aria-label="Entry type" hidden={width < 750}>{entry.file_type ?? "Unknown Entry Type"}</TableCell>
+                            <TableCell aria-label="File size" hidden={width < 550}>{entry.is_dir ? "-" : FileSystem.formatSize(entry.size)}</TableCell>
+                            <TableCell aria-label="Creation date" hidden={width < 1240}>{entry.is_dir ? "-" : entry.creation_date.toLocaleDateString()}</TableCell>
+                            <TableCell aria-label="Modification date" hidden={width < 1240}>{entry.is_dir ? "-" : entry.last_modified.toLocaleDateString()}</TableCell>
                             <TableCell className="text-right" aria-label="Actions">
                                 <Dropdown
                                     classNames={{
@@ -167,12 +177,7 @@ export default function FileTable()
                                             {
                                                 setSelectedEntries(new Set([entry]));
                                                 askCopyMoveSelectedEntries();
-                                            }} aria-label={`Copy ${entry.filename}`}>Copy</DropdownItem>
-                                            <DropdownItem key={`move-${entry.filename}`} endContent={<Icon icon={"mage:l-arrow-right-up"} width={18} aria-hidden="true"/>} onPress={() =>
-                                            {
-                                                setSelectedEntries(new Set([entry]));
-                                                askCopyMoveSelectedEntries();
-                                            }} aria-label={`Move ${entry.filename}`}>Move</DropdownItem>
+                                            }} aria-label={`Copy ${entry.filename}`}>Copy/Move</DropdownItem>
                                             <DropdownItem key={`share-${entry.filename}`} endContent={<Icon icon={"mage:share-fill"} width={16} aria-hidden="true"/>} aria-label={`Share ${entry.filename}`}>Share</DropdownItem>
                                             <DropdownItem key={`download-${entry.filename}`} endContent={<Icon icon={"mage:file-download-fill"} aria-hidden="true"/>} onPress={() => downloadEntry(entry)} aria-label={`Download ${entry.filename}`}>Download</DropdownItem>
                                         </DropdownSection>
