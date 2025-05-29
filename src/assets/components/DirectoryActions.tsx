@@ -16,7 +16,8 @@ export function DirectoryActions()
         refresh,
         askUploadEntry,
         askCreateNewFileEntry,
-        askCreateArchiveWithSelectedEntries
+        askCreateArchiveWithSelectedEntries,
+        askCopyMoveSelectedEntries
     } = useFileSystemEntry();
     const {addFavorite, removeFavorite, isFavorited} = useFavorites();
 
@@ -57,7 +58,7 @@ export function DirectoryActions()
                 count={selectedEntries.size}
                 icon={"mage:copy-fill"}
                 tooltip={`Copy/Move ${selectedEntries.size} file${selectedEntries.size === 1 ? "" : "s"}`}
-                onPress={downloadSelected}
+                onPress={askCopyMoveSelectedEntries}
                 isPositiveCountRequired={true}
                 isVisible={alwaysShow || isHovering}
                 index={8}

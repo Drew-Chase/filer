@@ -17,16 +17,14 @@ export default function FileTable()
         sortDescriptor,
         onSortChange,
         openRenameModal,
-        openCopyModal,
-        openMoveModal,
         openDeleteModal,
+        askCopyMoveSelectedEntries,
         downloadEntry,
         selectedEntries,
         setSelectedEntries,
         currentDirectoryFilter
     } = useFileSystemEntry();
     const {pathname} = useLocation();
-
 
     const MAX_ITEMS_PER_PAGE = 25;
     const [pageItems, setPageItems] = useState<FilesystemEntry[]>([]);
@@ -165,8 +163,16 @@ export default function FileTable()
                                                 </DropdownItem>
                                             ) : (<></>)}
                                             <DropdownItem key={`rename-${entry.filename}`} endContent={<Icon icon={"gg:rename"} width={18} aria-hidden="true"/>} onPress={() => openRenameModal(entry)} aria-label={`Rename ${entry.filename}`}>Rename</DropdownItem>
-                                            <DropdownItem key={`copy-${entry.filename}`} endContent={<Icon icon={"mage:copy-fill"} aria-hidden="true"/>} onPress={() => openCopyModal([entry])} aria-label={`Copy ${entry.filename}`}>Copy</DropdownItem>
-                                            <DropdownItem key={`move-${entry.filename}`} endContent={<Icon icon={"mage:l-arrow-right-up"} width={18} aria-hidden="true"/>} onPress={() => openMoveModal([entry])} aria-label={`Move ${entry.filename}`}>Move</DropdownItem>
+                                            <DropdownItem key={`copy-${entry.filename}`} endContent={<Icon icon={"mage:copy-fill"} aria-hidden="true"/>} onPress={() =>
+                                            {
+                                                setSelectedEntries(new Set([entry]));
+                                                askCopyMoveSelectedEntries();
+                                            }} aria-label={`Copy ${entry.filename}`}>Copy</DropdownItem>
+                                            <DropdownItem key={`move-${entry.filename}`} endContent={<Icon icon={"mage:l-arrow-right-up"} width={18} aria-hidden="true"/>} onPress={() =>
+                                            {
+                                                setSelectedEntries(new Set([entry]));
+                                                askCopyMoveSelectedEntries();
+                                            }} aria-label={`Move ${entry.filename}`}>Move</DropdownItem>
                                             <DropdownItem key={`share-${entry.filename}`} endContent={<Icon icon={"mage:share-fill"} width={16} aria-hidden="true"/>} aria-label={`Share ${entry.filename}`}>Share</DropdownItem>
                                             <DropdownItem key={`download-${entry.filename}`} endContent={<Icon icon={"mage:file-download-fill"} aria-hidden="true"/>} onPress={() => downloadEntry(entry)} aria-label={`Download ${entry.filename}`}>Download</DropdownItem>
                                         </DropdownSection>

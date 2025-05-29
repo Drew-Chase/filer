@@ -9,6 +9,7 @@ import UploadEntryModal from "../components/modals/UploadEntryModal.tsx";
 import $ from "jquery";
 import NewFileEntryModal from "../components/modals/NewFileEntryModal.tsx";
 import ArchiveEntryModal from "../components/modals/ArchiveEntryModal.tsx";
+import CopyMoveEntryModal from "../components/modals/CopyMoveEntryModal.tsx";
 
 interface FileSystemEntryContextType
 {
@@ -16,13 +17,10 @@ interface FileSystemEntryContextType
     navigate: (path: string) => void;
     data: FilesystemData;
     loading: boolean;
-    search: (query: string, currentDirectory: boolean) => void;
     sortDescriptor: SortDescriptor;
     onSortChange: (sortDescriptor: SortDescriptor) => void;
     refresh: () => void;
     openRenameModal: (entry: FilesystemEntry) => void;
-    openCopyModal: (entry: FilesystemEntry[]) => void;
-    openMoveModal: (entry: FilesystemEntry[]) => void;
     openDeleteModal: (entry: FilesystemEntry[]) => void;
     askDeleteSelectedEntries: () => void;
     askCopyMoveSelectedEntries: () => void;
@@ -54,16 +52,13 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({column: "filename", direction: "ascending"} as SortDescriptor);
     const {isLoggedIn} = useAuth();
     const [currentEntryBeingRenamed, setCurrentEntryBeingRenamed] = useState<FilesystemEntry | null>(null);
-    // @ts-ignore
-    const [currentEntryBeingMoved, setCurrentEntryBeingMoved] = useState<FilesystemEntry[] | null>(null);
-    // @ts-ignore
-    const [currentEntryBeingCopied, setCurrentEntryBeingCopied] = useState<FilesystemEntry[] | null>(null);
     const [currentEntryBeingDeleted, setCurrentEntryBeingDeleted] = useState<FilesystemEntry[] | null>(null);
     const [selectedEntries, setSelectedEntries] = useState<Set<FilesystemEntry>>(new Set());
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [isNewFileEntryModalOpen, setIsNewFileEntryModalOpen] = useState(false);
     const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
     const [currentDirectoryFilter, setCurrentDirectoryFilter] = useState("");
+    const [isCopyMoveModalOpen, setIsCopyMoveModalOpen] = useState(false);
 
 
 // Modify the useEffect hook that watches pathname
@@ -215,11 +210,6 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
         sortEntries();
     }, [sortDescriptor]);
 
-    const search = useCallback(async (_query: string, _currentDirectory: boolean) =>
-    {
-        // TODO: Implement global searching
-    }, []);
-
     const copyEntry = useCallback(async (sourcePath: string, destinationPath: string) =>
     {
         if (!isLoggedIn) return;
@@ -270,16 +260,6 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
     const openRenameModal = useCallback((entry: FilesystemEntry) =>
     {
         setCurrentEntryBeingRenamed(entry);
-    }, []);
-
-    const openCopyModal = useCallback((entry: FilesystemEntry[]) =>
-    {
-        setCurrentEntryBeingCopied(entry);
-    }, []);
-
-    const openMoveModal = useCallback((entry: FilesystemEntry[]) =>
-    {
-        setCurrentEntryBeingMoved(entry);
     }, []);
 
     const openDeleteModal = useCallback((entry: FilesystemEntry[]) =>
@@ -354,16 +334,18 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
 
     const askCopyMoveSelectedEntries = useCallback(() =>
     {
+        setIsCopyMoveModalOpen(true);
     }, [selectedEntries]);
     const askUploadEntry = useCallback(() => setIsUploadModalOpen(true), []);
     const askCreateNewFileEntry = useCallback(() =>
     {
         setIsNewFileEntryModalOpen(true);
     }, []);
-    
-    const askCreateArchiveWithSelectedEntries = useCallback(() =>{
+
+    const askCreateArchiveWithSelectedEntries = useCallback(() =>
+    {
         setIsArchiveModalOpen(true);
-    }, [selectedEntries])
+    }, [selectedEntries]);
 
 
     return (
@@ -372,13 +354,10 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             navigate,
             data,
             loading,
-            search,
             sortDescriptor,
             onSortChange: setSortDescriptor,
             refresh,
             openRenameModal,
-            openCopyModal,
-            openMoveModal,
             openDeleteModal,
             copyEntry,
             moveEntry,
@@ -401,6 +380,7 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             <UploadEntryModal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)}/>
             <NewFileEntryModal isOpen={isNewFileEntryModalOpen} onClose={() => setIsNewFileEntryModalOpen(false)}/>
             <ArchiveEntryModal isOpen={isArchiveModalOpen} onClose={() => setIsArchiveModalOpen(false)}/>
+            <CopyMoveEntryModal isOpen={isCopyMoveModalOpen} onClose={() => setIsCopyMoveModalOpen(false)}/>
             {children}
         </FileSystemEntryContext.Provider>
     );
