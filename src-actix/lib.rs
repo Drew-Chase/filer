@@ -8,7 +8,6 @@ use crate::io::fs::indexer::{indexer_data, indexer_db};
 use actix_web::{App, HttpResponse, HttpServer, middleware, web};
 use anyhow::Result;
 use clap::Parser;
-use include_dir::{Dir, include_dir};
 use io::fs::filesystem_endpoint;
 use log::Level::Info;
 use log::*;
