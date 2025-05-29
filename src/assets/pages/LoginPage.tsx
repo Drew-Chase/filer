@@ -1,10 +1,11 @@
-import {Button, cn, Form, Image, Input, Switch} from "@heroui/react";
+import {Button, cn, Form, Image, Switch} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import logo from "../images/filer-logo.svg";
 import {useState} from "react";
 import {useAuth} from "../providers/AuthProvider.tsx";
 import {useNavigate} from "react-router-dom";
 import {motion} from "framer-motion";
+import Input from "../components/overrides/Input.tsx";
 
 export default function LoginPage()
 {

@@ -1,7 +1,8 @@
-import {Input, Kbd} from "@heroui/react";
+import {Kbd} from "@heroui/react";
 import {useState} from "react";
 import SearchResult from "./SearchResult.tsx";
 import {AnimatePresence, motion} from "framer-motion";
+import Input from "../overrides/Input.tsx";
 
 export default function SearchInput()
 {
