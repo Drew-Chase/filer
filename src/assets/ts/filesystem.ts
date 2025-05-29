@@ -1,4 +1,4 @@
-import {extensionFileTypeMap} from "./file-type-match.ts";
+import {extensionFileTypeMap, getFileType} from "./file-type-match.ts";
 import {addToast} from "@heroui/react";
 
 /**
@@ -89,9 +89,7 @@ export class FileSystem
                     entry.file_type = "Folder";
                 } else
                 {
-                    const extensions = entry.filename.toLowerCase().trim().split(".").slice(1);
-                    let extension = extensions.length > 0 ? extensions.join(".") : "";
-                    entry.file_type = extensionFileTypeMap.find(e => e.extensions.includes(extension))?.description ?? "File";
+                    entry.file_type = getFileType(entry.filename)?.description ?? "File";
                 }
 
                 return entry;
@@ -369,5 +367,55 @@ export class FileSystem
 
             return entry;
         });
+    }
+
+    static archive(filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void): void
+    {
+        const id = `${filename}-${crypto.randomUUID()}`;
+        const event = new EventSource(`/api/filesystem/archive/status/${id}`);
+        if (event == null) throw new Error("Failed to create SSE connection");
+        event.onopen = (async () =>
+        {
+            on_progress(0);
+            try
+            {
+                const response = await fetch("/api/filesystem/archive", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({entries: filenames, cwd, filename, tracker_id: id})
+                });
+                if (!response.ok)
+                {
+                    let body = await response.text();
+                    try
+                    {
+                        const json = JSON.parse(body);
+                        on_error(json.error || json.message || body);
+                    } catch
+                    {
+                        on_error(body);
+                    }
+                } else
+                {
+                    on_success();
+                }
+            } catch (e: Error | any)
+            {
+                on_error(`Error: ${e.message || e.toString() || "Unknown error occurred while trying to archive the files."}`);
+            }
+            event.close();
+        });
+        event.onmessage = (event) =>
+        {
+            const data = JSON.parse(event.data);
+            on_progress(data.progress);
+        };
+        event.onerror = () =>
+        {
+            on_error("Connection closed unexpectedly");
+            event.close();
+        };
     }
 }

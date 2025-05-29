@@ -15,7 +15,8 @@ export function DirectoryActions()
         askDeleteSelectedEntries,
         refresh,
         askUploadEntry,
-        askCreateNewFileEntry
+        askCreateNewFileEntry,
+        askCreateArchiveWithSelectedEntries
     } = useFileSystemEntry();
     const {addFavorite, removeFavorite, isFavorited} = useFavorites();
 
@@ -65,7 +66,7 @@ export function DirectoryActions()
                 count={selectedEntries.size}
                 icon={"solar:zip-file-bold"}
                 tooltip={`Archive ${selectedEntries.size} file${selectedEntries.size === 1 ? "" : "s"}`}
-                onPress={downloadSelected}
+                onPress={askCreateArchiveWithSelectedEntries}
                 isPositiveCountRequired={true}
                 isVisible={alwaysShow || isHovering}
                 index={7}

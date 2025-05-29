@@ -30,13 +30,17 @@ use tokio::sync::mpsc::Sender;
 use tokio_util::io::ReaderStream;
 
 // At module level
-static UPLOAD_TRACKERS: OnceLock<UploadTracker> = OnceLock::new();
+static UPLOAD_TRACKERS: OnceLock<FileProcessTracker> = OnceLock::new();
+static ARCHIVE_TRACKERS: OnceLock<FileProcessTracker> = OnceLock::new();
 
-type UploadTracker = Arc<Mutex<HashMap<String, Sender<Event>>>>;
+type FileProcessTracker = Arc<Mutex<HashMap<String, Sender<Event>>>>;
 
 // Helper function to get or initialize the tracker
-fn get_upload_trackers() -> &'static UploadTracker {
+fn get_upload_trackers() -> &'static FileProcessTracker {
     UPLOAD_TRACKERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+}
+fn get_archive_trackers() -> &'static FileProcessTracker {
+    ARCHIVE_TRACKERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
 }
 
 #[get("/")]
@@ -647,16 +651,41 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
         .get("filename")
         .and_then(|filename| filename.as_str())
         .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
+    let tracker_id = body
+        .get("tracker_id")
+        .and_then(|filename| filename.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Missing tracker id"))?;
     let pathed_entries = filenames
         .iter()
         .map(|filename| cwd.join(filename))
         .collect::<Vec<_>>();
     let archive_path = cwd.join(archive_file_name);
-    archive_wrapper::archive(archive_path, pathed_entries)
-        .await
-        .map_err(|e| anyhow::anyhow!(e))?;
+
+    let trackers = get_archive_trackers().lock().await;
+    if let Some(tracker) = trackers.get(tracker_id) {
+        archive_wrapper::archive(archive_path, pathed_entries, tracker)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+    }else{
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Invalid tracker id"
+        })));
+    }
 
     Ok(HttpResponse::Ok().finish())
+}
+
+#[get("/archive/status/{tracker_id}")]
+async fn get_archive_status(tracker_id: web::Path<String>) -> impl Responder {
+    let (tx, rx) = tokio::sync::mpsc::channel(100);
+
+    // Store the sender in our tracker
+    {
+        let mut trackers = get_archive_trackers().lock().await;
+        trackers.insert(tracker_id.to_string(), tx);
+    }
+
+    Sse::from_infallible_receiver(rx).with_keep_alive(Duration::from_secs(3))
 }
 
 // Helper function to format file sizes in a human-readable format
@@ -685,6 +714,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .wrap(Authentication::new())
             .service(get_filesystem_entries)
             .service(archive_paths)
+            .service(get_archive_status)
             .service(download)
             .service(search)
             .service(upload)
