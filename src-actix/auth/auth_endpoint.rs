@@ -1,7 +1,7 @@
 use crate::auth::auth_data::User;
 use crate::auth::permission_flags::PermissionFlags;
 use crate::helpers::http_error::Result;
-use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse};
+use actix_web::{HttpRequest, HttpResponse, delete, get, post, put, web};
 use anyhow::Error;
 use enumflags2::BitFlags;
 use serde::{Deserialize, Serialize};
@@ -203,7 +203,7 @@ async fn login(req: HttpRequest, login_data: web::Json<LoginRequest>) -> Result<
                     .path("/")
                     .max_age(actix_web::cookie::time::Duration::days(365))
                     .http_only(true)
-                    .secure(true) // Only send over HTTPS
+                    .secure(false) // Allow for HTTP
                     .same_site(actix_web::cookie::SameSite::Strict)
                     .finish(),
             );
@@ -213,7 +213,7 @@ async fn login(req: HttpRequest, login_data: web::Json<LoginRequest>) -> Result<
                 actix_web::cookie::Cookie::build("token", token.clone())
                     .path("/")
                     .http_only(true)
-                    .secure(true)
+                    .secure(false)
                     .same_site(actix_web::cookie::SameSite::Strict)
                     .finish(),
             );
