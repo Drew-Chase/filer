@@ -51,6 +51,15 @@ impl TryFrom<PathBuf> for FilesystemData {
     type Error = anyhow::Error;
 
     fn try_from(path: PathBuf) -> anyhow::Result<Self> {
+        #[cfg(unix)]
+        let path = {
+            let path = path.canonicalize()?;
+            if !path.starts_with("/") {
+                PathBuf::from("/").join(path)
+            } else {
+                path
+            }
+        };
         if !path.exists() {
             return Err(anyhow::anyhow!("Path does not exist"));
         }
