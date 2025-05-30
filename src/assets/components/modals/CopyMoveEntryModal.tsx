@@ -1,4 +1,4 @@
-import {Button, Checkbox, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Tab, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tabs} from "@heroui/react";
 import {useCallback, useEffect, useState} from "react";
 import {Icon} from "@iconify-icon/react";
 import {FileSystem, FilesystemData} from "../../ts/filesystem.ts";
@@ -22,15 +22,16 @@ export default function CopyMoveEntryModal(props: CopyMoveEntryProperties)
         if (currentPath == null) return;
         if (isMove)
         {
-            await FileSystem.moveEntry([...selectedEntries].map(i => i.path), currentPath);
-        }else{
-            await FileSystem.copyEntry([...selectedEntries].map(i => i.path), currentPath);
+            await FileSystem.moveEntry([...selectedEntries].map(i => i.path), selectedPath);
+        } else
+        {
+            await FileSystem.copyEntry([...selectedEntries].map(i => i.path), selectedPath);
         }
 
         refresh();
         props.onClose();
 
-    }, [selectedPath]);
+    }, [selectedPath, isMove]);
 
     return (
         <Modal
@@ -46,12 +47,21 @@ export default function CopyMoveEntryModal(props: CopyMoveEntryProperties)
             <ModalContent>
                 {onClose => (
                     <>
-                        <ModalHeader>{isMove ? "Move" : "Copy"} Entry</ModalHeader>
+                        <ModalHeader>
+                            <Tabs
+                                size={"lg"}
+                                variant={"underlined"}
+                                onSelectionChange={index =>
+                                {
+                                    setIsMove(index != "copy");
+                                }}
+                                selectedKey={isMove ? "move" : "copy"}
+                            >
+                                <Tab key={"move"} title={"Move Entry"}/>
+                                <Tab key={"copy"} title={"Copy Entry"}/>
+                            </Tabs>
+                        </ModalHeader>
                         <ModalBody>
-                            <div className={"flex flex-row items-center justify-between cursor-pointer hover:bg-white/10 p-2 rounded-md"} onClick={() => setIsMove(prev => !prev)}>
-                                <p>Move?</p>
-                                <Checkbox isSelected={isMove} onValueChange={setIsMove} radius={"full"}/>
-                            </div>
                             <FileTable selectedItem={selectedPath} onSelectionChange={setSelectedPath}/>
                         </ModalBody>
                         <ModalFooter>
