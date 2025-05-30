@@ -35,6 +35,7 @@ pub async fn run() -> Result<()> {
     if DEBUG {
         ProxyViteOptions::new().log_level(Info).build()?;
         std::thread::spawn(|| {
+            let mut crashes:u8 = 0;
             loop {
                 info!("Starting Vite server in development mode...");
                 let status = start_vite_server()
@@ -42,10 +43,15 @@ pub async fn run() -> Result<()> {
                     .wait()
                     .expect("Vite server crashed!");
                 if !status.success() {
+                    crashes += 1;
                     error!("The vite server has crashed!");
                 } else {
                     break;
                 }
+                if crashes > 5 {
+                    error!("The vite server has crashed 5 times in a row. Vite will not be restarted.");
+                }
+                std::thread::sleep(std::time::Duration::from_secs(5));
             }
         });
         fs::create_dir_all("target/dev-env").await?;
