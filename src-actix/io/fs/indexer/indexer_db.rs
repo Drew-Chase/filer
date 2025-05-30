@@ -293,7 +293,7 @@ impl IndexerData {
             return Ok(Vec::new());
         }
 
-        // First try exact search for very short queries
+        // First, try exact search for very short queries
         if search_term.len() <= 3 {
             let exact_pattern = format!("%{}%", search_term);
 
