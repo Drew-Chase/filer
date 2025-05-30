@@ -135,6 +135,7 @@ export default function DragDropArea(props: DragDropAreaProps)
                                     processFiles([...files]);
                                 }
                             });
+                            input.click();
                         }}
                     >
                         Select File(s)
