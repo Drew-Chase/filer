@@ -5,11 +5,13 @@ use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use log::{debug, error, info, trace, warn};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub async fn archive(
     archive_path: impl AsRef<Path>,
     entries: Vec<PathBuf>,
     sender: &tokio::sync::mpsc::Sender<Event>,
+    cancelled: &AtomicBool,
 ) -> Result<()> {
     let file = fs::File::create(archive_path.as_ref()).await?;
     info!("Created archive file at: {}", archive_path.as_ref().display());
@@ -56,6 +58,16 @@ pub async fn archive(
     debug!("Sent initial progress update (0.0%)");
     // Process the files and update progress
     for entry in entries {
+        // Check if operation was cancelled
+        if cancelled.load(Ordering::Relaxed) {
+            info!("Archive operation cancelled by user");
+            let _ = sender
+                .send(Event::from(sse::Data::new(
+                    "{ \"progress\": 0, \"status\": \"cancelled\" }",
+                )))
+                .await;
+            return Ok(());
+        }
         if entry.is_dir() {
             let dir_name = entry
                 .file_name()
@@ -99,6 +111,17 @@ pub async fn archive(
                     let mut buffer = [0; 4096]; // 4KB buffer
                     let mut last_progress_update = std::time::Instant::now();
                     loop {
+                        // Check if operation was cancelled
+                        if cancelled.load(Ordering::Relaxed) {
+                            info!("Archive operation cancelled by user while processing {}", path.display());
+                            let _ = sender
+                                .send(Event::from(sse::Data::new(
+                                    "{ \"progress\": 0, \"status\": \"cancelled\" }",
+                                )))
+                                .await;
+                            return Ok(());
+                        }
+
                         let bytes_read = match reader.read(&mut buffer) {
                             Ok(0) => break, // EOF
                             Ok(n) => n,
@@ -157,6 +180,17 @@ pub async fn archive(
             let mut buffer = [0; 4096]; // 4KB buffer
             let mut last_progress_update = std::time::Instant::now();
             loop {
+                // Check if operation was cancelled
+                if cancelled.load(Ordering::Relaxed) {
+                    info!("Archive operation cancelled by user while processing {}", entry.display());
+                    let _ = sender
+                        .send(Event::from(sse::Data::new(
+                            "{ \"progress\": 0, \"status\": \"cancelled\" }",
+                        )))
+                        .await;
+                    return Ok(());
+                }
+
                 let bytes_read = match reader.read(&mut buffer) {
                     Ok(0) => break, // EOF
                     Ok(n) => n,
