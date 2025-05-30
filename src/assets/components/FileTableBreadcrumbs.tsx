@@ -13,17 +13,18 @@ export default function FileTableBreadcrumbs(props: FileTableBreadcrumbsProperti
 
     return (
         <Breadcrumbs variant={"bordered"}>
+            <BreadcrumbItem
+                key="root"
+                onPress={() =>
+                {
+                    if (onNavigate) onNavigate("/");
+                    else navigate("/");
+                }}
+            >
+                Root
+            </BreadcrumbItem>
             {(!paths.length || paths.every(p => p.trim() === "")) ? (
-                <BreadcrumbItem
-                    key="root"
-                    onPress={() =>
-                    {
-                        if (onNavigate) onNavigate("/");
-                        else navigate("/");
-                    }}
-                >
-                    Root
-                </BreadcrumbItem>
+                <></>
             ) : (
                 paths.filter(i => i.trim() !== "").map((path, index) => (
                     <BreadcrumbItem
