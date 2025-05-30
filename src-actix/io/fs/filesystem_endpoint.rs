@@ -5,6 +5,7 @@ use crate::io::fs::download_parameters::DownloadParameters;
 use crate::io::fs::filesystem_data::{FilesystemData, FilesystemEntry};
 use crate::io::fs::indexer::indexer_data;
 use crate::io::fs::indexer::indexer_data::IndexerData;
+use crate::io::fs::normalize_path::NormalizePath;
 use actix_web::http::header::ContentDisposition;
 use actix_web::web::Query;
 use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
@@ -19,6 +20,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use sysinfo::Disks;
 use tokio::fs;
@@ -32,8 +34,12 @@ use tokio_util::io::ReaderStream;
 // At module level
 static UPLOAD_TRACKERS: OnceLock<FileProcessTracker> = OnceLock::new();
 static ARCHIVE_TRACKERS: OnceLock<FileProcessTracker> = OnceLock::new();
+static ARCHIVE_CANCEL_FLAGS: OnceLock<ArchiveCancelFlags> = OnceLock::new();
+static UPLOAD_CANCEL_FLAGS: OnceLock<UploadCancelFlags> = OnceLock::new();
 
 type FileProcessTracker = Arc<Mutex<HashMap<String, Sender<Event>>>>;
+type ArchiveCancelFlags = Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>;
+type UploadCancelFlags = Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>;
 
 // Helper function to get or initialize the tracker
 fn get_upload_trackers() -> &'static FileProcessTracker {
@@ -42,15 +48,18 @@ fn get_upload_trackers() -> &'static FileProcessTracker {
 fn get_archive_trackers() -> &'static FileProcessTracker {
     ARCHIVE_TRACKERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
 }
+fn get_archive_cancel_flags() -> &'static ArchiveCancelFlags {
+    ARCHIVE_CANCEL_FLAGS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+}
+fn get_upload_cancel_flags() -> &'static UploadCancelFlags {
+    UPLOAD_CANCEL_FLAGS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+}
 
 #[get("/")]
 async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> {
-    let mut path = match request.headers().get("X-Filesystem-Path") {
+    let path = match request.headers().get("X-Filesystem-Path") {
         Some(header) => match header.to_str() {
-            Ok(path_str) => { 
-
-                PathBuf::from(path_str) 
-            },
+            Ok(path_str) => path_str.to_os_path(),
             Err(_) => {
                 return Ok(HttpResponse::BadRequest().json(json!({
                     "error": "X-Filesystem-Path header is not a valid string"
@@ -95,8 +104,10 @@ async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> 
         #[cfg(not(target_os = "windows"))]
         {
             // On Unix systems, use the root directory "/"
-            path = PathBuf::from("/");
+            let path = PathBuf::from("/");
             // Continue to the normal path handling below
+            let entries: FilesystemData = path.try_into()?;
+            return Ok(HttpResponse::Ok().json(json!(entries)));
         }
     }
 
@@ -111,11 +122,13 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
     use archflow::compression::CompressionMethod;
     use archflow::error::ArchiveError;
     use archflow::types::FileDateTime;
+    let cwd = query.cwd.to_os_path();
     let items: Vec<PathBuf> = query
         .items
         .iter()
-        .map(|item| Path::new(format!("{}{}", query.cwd, item).as_str()).to_path_buf())
+        .map(|item| format!("{}{}", query.cwd, item).to_os_path())
         .collect();
+
     let is_single_entry = items.len() == 1;
     let is_single_entry_directory = is_single_entry && items[0].is_dir();
 
@@ -154,7 +167,6 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
 
     // For directories or multiple files, create a zip archive
     let (w, r) = duplex(4096);
-    let cwd = query.cwd.clone();
     let items = items.clone();
 
     tokio::spawn(async move {
@@ -319,7 +331,7 @@ async fn upload(mut payload: web::Payload, request: HttpRequest) -> impl Respond
 
     let path = match request.headers().get("X-Filesystem-Path") {
         Some(header) => match header.to_str() {
-            Ok(path_str) => PathBuf::from(path_str),
+            Ok(path_str) => path_str.to_os_path(),
             Err(_) => {
                 return HttpResponse::BadRequest().json(json!({
                     "error": "Invalid X-Filesystem-Path header"
@@ -339,9 +351,20 @@ async fn upload(mut payload: web::Payload, request: HttpRequest) -> impl Respond
         trackers.get(&upload_id).cloned()
     };
 
+    // Create a cancellation flag for this upload
+    let cancel_flag = Arc::new(AtomicBool::new(false));
+    {
+        let mut cancel_flags = get_upload_cancel_flags().lock().await;
+        cancel_flags.insert(upload_id.clone(), cancel_flag.clone());
+    }
+
     let mut file = match File::create(&path).await {
         Ok(file) => file,
         Err(_) => {
+            // Clean up the cancellation flag
+            let mut cancel_flags = get_upload_cancel_flags().lock().await;
+            cancel_flags.remove(&upload_id);
+
             return HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to create file"
             }));
@@ -352,9 +375,44 @@ async fn upload(mut payload: web::Payload, request: HttpRequest) -> impl Respond
 
     // Process the upload
     while let Some(chunk) = payload.next().await {
+        // Check if upload was cancelled
+        if cancel_flag.load(Ordering::Relaxed) {
+            info!("Upload operation with ID {} cancelled by user", upload_id);
+
+            // Send cancellation event
+            if let Some(sender) = &progress_sender {
+                let _ = sender
+                    .send(Event::from(Data::new(
+                        json!({
+                            "status": "cancelled",
+                            "bytesUploaded": total_bytes
+                        })
+                        .to_string(),
+                    )))
+                    .await;
+            }
+
+            // Clean up
+            let mut cancel_flags = get_upload_cancel_flags().lock().await;
+            cancel_flags.remove(&upload_id);
+
+            // Close and delete the partial file
+            file.shutdown().await.ok();
+            fs::remove_file(&path).await.ok();
+
+            return HttpResponse::Ok().json(json!({
+                "status": "cancelled",
+                "message": "Upload cancelled by user"
+            }));
+        }
+
         match chunk {
             Ok(bytes) => {
                 if file.write_all(&bytes).await.is_err() {
+                    // Clean up the cancellation flag
+                    let mut cancel_flags = get_upload_cancel_flags().lock().await;
+                    cancel_flags.remove(&upload_id);
+
                     return HttpResponse::InternalServerError().json(json!({
                         "error": "Failed to write file"
                     }));
@@ -376,6 +434,10 @@ async fn upload(mut payload: web::Payload, request: HttpRequest) -> impl Respond
                 }
             }
             Err(_) => {
+                // Clean up the cancellation flag
+                let mut cancel_flags = get_upload_cancel_flags().lock().await;
+                cancel_flags.remove(&upload_id);
+
                 return HttpResponse::InternalServerError().json(json!({
                     "error": "Failed to read upload data"
                 }));
@@ -400,6 +462,10 @@ async fn upload(mut payload: web::Payload, request: HttpRequest) -> impl Respond
         trackers.remove(&upload_id);
     }
 
+    // Clean up the cancellation flag
+    let mut cancel_flags = get_upload_cancel_flags().lock().await;
+    cancel_flags.remove(&upload_id);
+
     HttpResponse::Ok().json(json!({
         "status": "success",
         "bytesUploaded": total_bytes
@@ -415,17 +481,17 @@ async fn copy_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<imp
         .map(|values| {
             values
                 .iter()
-                .filter_map(|e| e.as_str().map(PathBuf::from))
+                .filter_map(|e| e.as_str().map(|i| i.to_os_path()))
                 .collect::<Vec<_>>()
         })
         .ok_or_else(|| anyhow::anyhow!("Invalid entries array"))?;
 
     // Extract destination path
-    let dest_path = PathBuf::from(
-        body.get("path")
-            .and_then(|path| path.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?,
-    );
+    let dest_path = body
+        .get("path")
+        .and_then(|path| path.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?
+        .to_os_path();
 
     // Verify source paths exist
     for source_path in &source_paths {
@@ -436,7 +502,7 @@ async fn copy_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<imp
         }
     }
 
-    // Copy each source to destination
+    // Copy each source to the destination
     for source_path in source_paths {
         let dest = dest_path.join(source_path.file_name().unwrap_or_default());
 
@@ -489,29 +555,25 @@ async fn move_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<imp
         .map(|values| {
             values
                 .iter()
-                .filter_map(|e| e.as_str().map(PathBuf::from))
+                .filter_map(|e| e.as_str().map(|i| i.to_os_path()))
                 .collect::<Vec<_>>()
         })
         .ok_or_else(|| anyhow::anyhow!("Invalid entries array"))?;
 
     // Extract destination path
-    let dest_path = PathBuf::from(
-        body.get("path")
-            .and_then(|path| path.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?,
-    );
+    let dest_path = body
+        .get("path")
+        .and_then(|path| path.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?
+        .to_os_path();
 
-    // Verify source paths exist
-    for source_path in &source_paths {
+    // Move each source to a destination
+    for source_path in source_paths {
         if !source_path.exists() {
             return Ok(HttpResponse::NotFound().json(json!({
                 "error": format!("Source path does not exist: {}", source_path.display())
             })));
         }
-    }
-
-    // Move each source to destination
-    for source_path in source_paths {
         let dest = dest_path.join(source_path.file_name().unwrap_or_default());
 
         // Move/rename is the same operation in fs terms
@@ -527,22 +589,54 @@ async fn move_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<imp
         "message": "Entries moved successfully"
     })))
 }
+#[post("/rename")]
+async fn rename_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
+    // Extract destination path
+    let source_path = body
+        .get("source")
+        .and_then(|path| path.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid source path"))?
+        .to_os_path();
+    let dest_path = body
+        .get("destination")
+        .and_then(|path| path.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?
+        .to_os_path();
+
+    if !source_path.exists() {
+        return Ok(HttpResponse::NotFound().json(json!({
+            "error": format!("Source path does not exist: {}", source_path.display())
+        })));
+    }
+
+    if let Err(e) = std::fs::rename(&source_path, &dest_path) {
+        return Ok(HttpResponse::InternalServerError().json(json!({
+            "error": format!("Failed to move entry: {}", e)
+        })));
+    }
+
+    Ok(HttpResponse::Ok().json(json!({
+        "status": "success",
+        "message": "Entries moved successfully"
+    })))
+}
 #[delete("/")]
-async fn delete_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
-    let paths: Vec<PathBuf> = match request.headers().get("X-Filesystem-Paths") {
-        Some(header) => match header.to_str() {
-            Ok(path_str) => {
-                serde_json::from_str::<Vec<PathBuf>>(path_str).map_err(anyhow::Error::msg)?
-            }
-            Err(_) => {
+async fn delete_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
+    let paths = match body.get("paths") {
+        Some(paths) => match paths.as_array() {
+            Some(array) => array
+                .iter()
+                .filter_map(|p| p.as_str().map(|i| i.to_os_path()))
+                .collect::<Vec<PathBuf>>(),
+            None => {
                 return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "X-Filesystem-Path header is not a valid string"
+                    "error": "paths must be an array"
                 })));
             }
         },
         None => {
             return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "X-Filesystem-Path header is missing"
+                "error": "paths field is required"
             })));
         }
     };
@@ -551,7 +645,8 @@ async fn delete_filesystem_entry(request: HttpRequest) -> Result<impl Responder>
         // Verify a path exists
         if !path.exists() {
             return Ok(HttpResponse::NotFound().json(json!({
-                "error": "Path does not exist"
+                "error": "Path does not exist",
+                "path": path.to_string_lossy().into_owned()
             })));
         }
 
@@ -576,19 +671,16 @@ async fn delete_filesystem_entry(request: HttpRequest) -> Result<impl Responder>
 }
 
 #[post("/new")]
-async fn new_filesystem_entry(request: HttpRequest) -> Result<impl Responder> {
-    let file_path = request
-        .headers()
-        .get("X-Filesystem-Path")
-        .and_then(|h| h.to_str().ok())
-        .map(PathBuf::from)
-        .ok_or_else(|| anyhow::anyhow!("X-Filesystem-Path header is missing"))?;
+async fn new_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
+    let file_path = body
+        .get("path")
+        .and_then(|p| p.as_str())
+        .map(|i| i.to_os_path())
+        .ok_or_else(|| anyhow::anyhow!("path field is missing"))?;
 
-    let is_directory = request
-        .headers()
-        .get("X-Is-Directory")
-        .and_then(|h| h.to_str().ok())
-        .map(|s| s == "true")
+    let is_directory = body
+        .get("is_directory")
+        .and_then(|d| d.as_bool())
         .unwrap_or(false);
 
     if is_directory {
@@ -639,11 +731,11 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
                 .collect::<Vec<_>>()
         })
         .ok_or_else(|| anyhow::anyhow!("Invalid entries array"))?;
-    let cwd = PathBuf::from(
-        body.get("cwd")
-            .and_then(|cwd| cwd.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Invalid cwd"))?,
-    );
+    let cwd = body
+        .get("cwd")
+        .and_then(|cwd| cwd.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid cwd"))?
+        .to_os_path();
     let archive_file_name = body
         .get("filename")
         .and_then(|filename| filename.as_str())
@@ -652,7 +744,7 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
         .get("tracker_id")
         .and_then(|filename| filename.as_str())
         .ok_or_else(|| anyhow::anyhow!("Missing tracker id"))?;
-    let pathed_entries = filenames
+    let absolute_file_paths = filenames
         .iter()
         .map(|filename| cwd.join(filename))
         .collect::<Vec<_>>();
@@ -660,9 +752,25 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
 
     let trackers = get_archive_trackers().lock().await;
     if let Some(tracker) = trackers.get(tracker_id) {
-        archive_wrapper::archive(archive_path, pathed_entries, tracker)
+        // Create a new cancellation flag for this operation
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+
+        // Store the cancellation flag
+        {
+            let mut cancel_flags = get_archive_cancel_flags().lock().await;
+            cancel_flags.insert(tracker_id.to_string(), cancel_flag.clone());
+        }
+
+        // Run the archive operation with the cancellation flag
+        archive_wrapper::archive(archive_path, absolute_file_paths, tracker, &cancel_flag)
             .await
             .map_err(|e| anyhow::anyhow!(e))?;
+
+        // Clean up the cancellation flag
+        {
+            let mut cancel_flags = get_archive_cancel_flags().lock().await;
+            cancel_flags.remove(tracker_id);
+        }
     } else {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Invalid tracker id"
@@ -683,6 +791,60 @@ async fn get_archive_status(tracker_id: web::Path<String>) -> impl Responder {
     }
 
     Sse::from_infallible_receiver(rx).with_keep_alive(Duration::from_secs(3))
+}
+
+#[post("/archive/cancel/{tracker_id}")]
+async fn cancel_archive(tracker_id: web::Path<String>) -> Result<impl Responder> {
+    let tracker_id = tracker_id.into_inner();
+
+    // Get the cancellation flag for this tracker
+    let cancel_flags = get_archive_cancel_flags().lock().await;
+
+    if let Some(flag) = cancel_flags.get(&tracker_id) {
+        // Set the flag to true to signal cancellation
+        flag.store(true, Ordering::Relaxed);
+        info!("Archive operation with ID {} cancelled by user", tracker_id);
+
+        Ok(HttpResponse::Ok().json(json!({
+            "status": "success",
+            "message": "Archive operation cancelled"
+        })))
+    } else {
+        // If the tracker doesn't exist, it might have already completed or never existed
+        warn!("Attempted to cancel non-existent archive operation with ID {}", tracker_id);
+
+        Ok(HttpResponse::NotFound().json(json!({
+            "status": "error",
+            "message": "Archive operation not found or already completed"
+        })))
+    }
+}
+
+#[post("/upload/cancel/{upload_id}")]
+async fn cancel_upload(upload_id: web::Path<String>) -> Result<impl Responder> {
+    let upload_id = upload_id.into_inner();
+
+    // Get the cancellation flag for this upload
+    let cancel_flags = get_upload_cancel_flags().lock().await;
+
+    if let Some(flag) = cancel_flags.get(&upload_id) {
+        // Set the flag to true to signal cancellation
+        flag.store(true, Ordering::Relaxed);
+        info!("Upload operation with ID {} cancelled by user", upload_id);
+
+        Ok(HttpResponse::Ok().json(json!({
+            "status": "success",
+            "message": "Upload operation cancelled"
+        })))
+    } else {
+        // If the tracker doesn't exist, it might have already completed or never existed
+        warn!("Attempted to cancel non-existent upload operation with ID {}", upload_id);
+
+        Ok(HttpResponse::NotFound().json(json!({
+            "status": "error",
+            "message": "Upload operation not found or already completed"
+        })))
+    }
 }
 
 // Helper function to format file sizes in a human-readable format
@@ -712,12 +874,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(get_filesystem_entries)
             .service(archive_paths)
             .service(get_archive_status)
+            .service(cancel_archive)
             .service(download)
             .service(search)
             .service(upload)
             .service(upload_progress)
+            .service(cancel_upload)
             .service(copy_filesystem_entry)
             .service(move_filesystem_entry)
+            .service(rename_filesystem_entry)
             .service(delete_filesystem_entry)
             .service(new_filesystem_entry)
             .service(get_indexer_stats),
