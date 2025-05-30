@@ -30,10 +30,24 @@ impl TryFrom<PathBuf> for FilesystemEntry {
             .to_str()
             .ok_or(anyhow!("Unable to convert to str"))?
             .to_string();
-        let path = path
+
+        // Get path string and ensure it's properly formatted for the platform
+        let path_str = path
             .to_str()
-            .ok_or(anyhow!("Unable to convert to str"))?
-            .to_string();
+            .ok_or(anyhow!("Unable to convert to str"))?;
+
+        // On Unix systems, ensure the path starts with "/"
+        #[cfg(unix)]
+        let path = if !path_str.starts_with("/") {
+            format!("/{}", path_str)
+        } else {
+            path_str.to_string()
+        };
+
+        // On Windows, use the path as is
+        #[cfg(windows)]
+        let path = path_str.to_string();
+
         let created = metadata.created().ok();
         let last_modified = metadata.modified().ok();
         Ok(FilesystemEntry {
@@ -51,18 +65,39 @@ impl TryFrom<PathBuf> for FilesystemData {
     type Error = anyhow::Error;
 
     fn try_from(path: PathBuf) -> anyhow::Result<Self> {
+        // Handle empty or root path differently on Windows vs Unix
+        #[cfg(windows)]
+        let path = if path.to_str().map_or(false, |p| p.is_empty() || p == "/") {
+            // On Windows, empty or "/" path is handled in filesystem_endpoint.rs
+            // to show drives, so we just use a valid path here
+            path
+        } else {
+            // For non-empty paths, ensure they exist
+            if !path.exists() {
+                return Err(anyhow::anyhow!("Path does not exist"));
+            }
+            path
+        };
+
         #[cfg(unix)]
-        let path = {
-            let path = path.canonicalize()?;
-            if !path.starts_with("/") {
+        let path = if path.to_str().map_or(false, |p| p.is_empty()) {
+            // On Unix, empty path should be treated as root
+            PathBuf::from("/")
+        } else {
+            // For non-empty paths on Unix, ensure they start with "/"
+            let path_str = path.to_str().unwrap_or("");
+            if !path_str.starts_with("/") {
                 PathBuf::from("/").join(path)
             } else {
                 path
             }
         };
+
+        #[cfg(not(windows))]
         if !path.exists() {
             return Err(anyhow::anyhow!("Path does not exist"));
         }
+
         let readdir = std::fs::read_dir(&path)?;
         let mut entries = Vec::new();
         for entry in readdir {
@@ -74,8 +109,30 @@ impl TryFrom<PathBuf> for FilesystemData {
                 }
             }
         }
+
+        // Format parent path according to platform
+        let parent = path.parent().map(|p| {
+            let parent_str = p.to_str().unwrap_or("");
+            #[cfg(unix)]
+            {
+                // On Unix, ensure parent path starts with "/"
+                if parent_str.is_empty() {
+                    "/".to_string()
+                } else if !parent_str.starts_with("/") {
+                    format!("/{}", parent_str)
+                } else {
+                    parent_str.to_string()
+                }
+            }
+            #[cfg(windows)]
+            {
+                // On Windows, use the path as is
+                parent_str.to_string()
+            }
+        });
+
         Ok(FilesystemData {
-            parent: path.parent().map(|p| p.to_str().unwrap().to_string()),
+            parent,
             entries,
         })
     }

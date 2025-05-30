@@ -45,9 +45,12 @@ fn get_archive_trackers() -> &'static FileProcessTracker {
 
 #[get("/")]
 async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> {
-    let path = match request.headers().get("X-Filesystem-Path") {
+    let mut path = match request.headers().get("X-Filesystem-Path") {
         Some(header) => match header.to_str() {
-            Ok(path_str) => PathBuf::from(path_str),
+            Ok(path_str) => { 
+
+                PathBuf::from(path_str) 
+            },
             Err(_) => {
                 return Ok(HttpResponse::BadRequest().json(json!({
                     "error": "X-Filesystem-Path header is not a valid string"
@@ -61,28 +64,40 @@ async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> 
         }
     };
 
-    if cfg!(target_os = "windows") && (path.to_str() == Some("/") || path.to_str() == Some("")) {
-        let disks = Disks::new_with_refreshed_list();
+    // Handle root or empty path
+    if path.to_str() == Some("/") || path.to_str() == Some("") {
+        #[cfg(target_os = "windows")]
+        {
+            // On Windows, show available drives
+            let disks = Disks::new_with_refreshed_list();
 
-        let drives: Vec<FilesystemEntry> = disks
-            .iter()
-            .map(|disk| {
-                let mount_point = disk.mount_point().to_path_buf();
-                FilesystemEntry {
-                    filename: mount_point.to_string_lossy().into_owned(),
-                    path: mount_point.to_string_lossy().into_owned(),
-                    size: disk.total_space(),
-                    is_dir: true,
-                    created: None,
-                    last_modified: None,
-                }
-            })
-            .collect();
+            let drives: Vec<FilesystemEntry> = disks
+                .iter()
+                .map(|disk| {
+                    let mount_point = disk.mount_point().to_path_buf();
+                    FilesystemEntry {
+                        filename: mount_point.to_string_lossy().into_owned(),
+                        path: mount_point.to_string_lossy().into_owned(),
+                        size: disk.total_space(),
+                        is_dir: true,
+                        created: None,
+                        last_modified: None,
+                    }
+                })
+                .collect();
 
-        return Ok(HttpResponse::Ok().json(json!({
-            "parent": None::<String>,
-            "entries": drives
-        })));
+            return Ok(HttpResponse::Ok().json(json!({
+                "parent": None::<String>,
+                "entries": drives
+            })));
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            // On Unix systems, use the root directory "/"
+            path = PathBuf::from("/");
+            // Continue to the normal path handling below
+        }
     }
 
     let entries: FilesystemData = path.try_into()?;
