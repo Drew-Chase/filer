@@ -134,6 +134,7 @@ export class FileSystem
         const response = await fetch("/api/filesystem/copy", {
             method: "POST",
             body: JSON.stringify({entries: sourcePaths, path: destinationPath}),
+            headers: {"Content-Type": "application/json"}
         });
 
         if (!response.ok)
@@ -148,6 +149,7 @@ export class FileSystem
         const response = await fetch("/api/filesystem/move", {
             method: "POST",
             body: JSON.stringify({entries: sourcePaths, path: destinationPath}),
+            headers: {"Content-Type": "application/json"}
         });
 
         if (!response.ok)
