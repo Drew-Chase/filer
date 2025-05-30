@@ -11,6 +11,20 @@
           <config />
         </ContributedStateBase>
       </target>
+      <target name="drew@192.168.1.201:22" type="ssh/sftp" uuid="29dce217-8f7a-4508-8589-b716fe09dd81">
+        <config>
+          <option name="projectRootOnTarget" value="/home/drew/filer" />
+          <option name="serverName" value="drew@192.168.1.201:22 key" />
+        </config>
+        <ContributedStateBase type="RsLanguageRuntime">
+          <config>
+            <option name="cargoPath" value="/home/drew/.cargo/bin/cargo" />
+            <option name="cargoVersion" value="1.87.0 (99624be96 2025-05-06)" />
+            <option name="rustcPath" value="/home/drew/.cargo/bin/rustc" />
+            <option name="rustcVersion" value="1.87.0 (17067e9ac 2025-05-09)" />
+          </config>
+        </ContributedStateBase>
+      </target>
     </targets>
   </component>
 </project>
