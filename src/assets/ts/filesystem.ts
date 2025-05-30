@@ -158,14 +158,29 @@ export class FileSystem
             throw new Error(errorData.error || `Failed to move: ${response.statusText}`);
         }
     }
+    static async renameEntry(source: string, destination: string): Promise<void>
+    {
+        const response = await fetch("/api/filesystem/rename", {
+            method: "POST",
+            body: JSON.stringify({source, destination}),
+            headers: {"Content-Type": "application/json"}
+        });
+
+        if (!response.ok)
+        {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to move: ${response.statusText}`);
+        }
+    }
 
     static async deleteEntry(path: string | string[]): Promise<void>
     {
         const response = await fetch("/api/filesystem/", {
             method: "DELETE",
             headers: {
-                "X-Filesystem-Paths": JSON.stringify(path instanceof Array ? path : [path])
-            }
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({paths: path instanceof Array ? path : [path]})
         });
 
         if (!response.ok)
@@ -252,12 +267,28 @@ export class FileSystem
         return path.substring(lastSlashIndex + 1);
     }
 
-    public static async upload(file: File, path: string, updateProgress: (bytes: number) => void): Promise<void>
+    public static async upload(file: File, path: string, updateProgress: (bytes: number) => void, onCancelled?: () => void): Promise<{ promise: Promise<void>, cancel: () => Promise<void>, uploadId: string }>
     {
         // Generate unique upload ID
-        const uploadId = crypto.randomUUID();
+        const uploadId = Math.random().toString(36);
 
-        return new Promise<void>((resolve, reject) =>
+        // Function to cancel the upload
+        const cancel = async () => {
+            try {
+                const response = await fetch(`/api/filesystem/upload/cancel/${uploadId}`, {
+                    method: "POST"
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Failed to cancel upload:", errorData.message || "Unknown error");
+                }
+            } catch (e: Error | any) {
+                console.error("Error cancelling upload:", e);
+            }
+        };
+
+        const promise = new Promise<void>((resolve, reject) =>
         {
             // Set up the SSE listener for progress
             const events = new EventSource(`/api/filesystem/upload/progress/${uploadId}`);
@@ -275,6 +306,14 @@ export class FileSystem
                         console.log(`Upload complete: ${data.bytesUploaded} bytes`);
                         events.close();
                         resolve();
+                        break;
+                    case "cancelled":
+                        console.log(`Upload cancelled: ${data.bytesUploaded} bytes`);
+                        events.close();
+                        if (onCancelled) {
+                            onCancelled();
+                        }
+                        resolve(); // Resolve instead of reject to avoid error handling
                         break;
                     case "error":
                         events.close();
@@ -313,16 +352,18 @@ export class FileSystem
                 });
             };
         });
+
+        return { promise, cancel, uploadId };
     }
 
     static async createEntry(filename: string, cwd: string, isDirectory: boolean)
     {
         const response = await fetch("/api/filesystem/new", {
             headers: {
-                "X-Filesystem-Path": `${cwd}/${filename}`,
-                "X-Is-Directory": isDirectory.toString()
+                "Content-Type": "application/json"
             },
-            method: "POST"
+            method: "POST",
+            body: JSON.stringify({path: `${cwd}/${filename}`, is_directory: isDirectory})
         });
         if (!response.ok)
         {
@@ -365,11 +406,36 @@ export class FileSystem
         });
     }
 
-    static archive(filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void): void
+    static archive(filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void): { cancel: () => Promise<void>, trackerId: string }
     {
-        const id = `${filename}-${crypto.randomUUID()}`;
+        const id = `${filename}-${Math.random().toString(36)}`;
         const event = new EventSource(`/api/filesystem/archive/status/${id}`);
         if (event == null) throw new Error("Failed to create SSE connection");
+
+        // Function to cancel the archive operation
+        const cancel = async () => {
+            try {
+                const response = await fetch(`/api/filesystem/archive/cancel/${id}`, {
+                    method: "POST"
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Failed to cancel archive:", errorData.message || "Unknown error");
+                }
+
+                // Close the event source
+                event.close();
+
+                // Call the cancelled callback if provided
+                if (on_cancelled) {
+                    on_cancelled();
+                }
+            } catch (e: Error | any) {
+                console.error("Error cancelling archive:", e);
+            }
+        };
+
         event.onopen = (async () =>
         {
             on_progress(0);
@@ -406,6 +472,13 @@ export class FileSystem
         event.onmessage = (event) =>
         {
             const data = JSON.parse(event.data);
+
+            // Check if the operation was cancelled
+            if (data.status === "cancelled" && on_cancelled) {
+                on_cancelled();
+                return;
+            }
+
             on_progress(data.progress);
         };
         event.onerror = () =>
@@ -413,5 +486,21 @@ export class FileSystem
             on_error("Connection closed unexpectedly");
             event.close();
         };
+
+        return { 
+            cancel, 
+            trackerId: id 
+        };
+    }
+
+    static async cancelArchive(trackerId: string): Promise<void> {
+        const response = await fetch(`/api/filesystem/archive/cancel/${trackerId}`, {
+            method: "POST"
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to cancel archive operation");
+        }
     }
 }
