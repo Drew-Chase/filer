@@ -3,7 +3,7 @@ import {useFileSystemEntry} from "../../providers/FileSystemEntryProvider.tsx";
 import {useState} from "react";
 import {Icon} from "@iconify-icon/react";
 import {motion} from "framer-motion";
-import {Button} from "@heroui/react";
+import {Button, Tooltip} from "@heroui/react";
 import {useSortable} from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
 
@@ -21,7 +21,7 @@ export function FavoriteEntry(props: { entry: FavoriteItem })
         transition,
         isDragging
     } = useSortable({
-        id: props.entry.path,
+        id: props.entry.path
     });
 
 
@@ -68,7 +68,9 @@ export function FavoriteEntry(props: { entry: FavoriteItem })
                             animate={{opacity: isHovering ? 1 : 0, height: isHovering ? 16 : 0}}
                             transition={{duration: 0.5, delay: 0, type: "spring", ease: "easeInOut"}}
                         >
-                            <p className={"text-tiny italic font-light truncate opacity-50 pr-2 max-w-[270px]"}>{props.entry.path}</p>
+                            <Tooltip content={decodeURIComponent(props.entry.path)} delay={1500} closeDelay={0} className={"pointer-events-none"}>
+                                <p className={"text-tiny italic font-light truncate opacity-50 pr-2 max-w-[270px]"}>{decodeURIComponent(props.entry.path)}</p>
+                            </Tooltip>
                         </motion.div>
                     </div>
                 </div>
