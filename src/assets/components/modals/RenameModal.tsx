@@ -1,5 +1,5 @@
 import {Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
-import {FilesystemEntry} from "../../ts/filesystem.ts";
+import {FileSystem, FilesystemEntry} from "../../ts/filesystem.ts";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";
 import {useFileSystemEntry} from "../../providers/FileSystemEntryProvider.tsx";
@@ -11,7 +11,7 @@ type RenameProperties = {
 
 export default function RenameModal(props: RenameProperties)
 {
-    const {moveEntry} = useFileSystemEntry();
+    const {refresh} = useFileSystemEntry();
     const [filename, setFilename] = useState<string>(props.entry?.filename || "");
     const [isLoading, setIsLoading] = useState(false);
 
@@ -20,7 +20,6 @@ export default function RenameModal(props: RenameProperties)
     {
         if (props.entry === null) return;
         setFilename(props.entry.filename);
-
     }, [props.entry]);
 
     return (
@@ -64,8 +63,8 @@ export default function RenameModal(props: RenameProperties)
                                     }
                                     let oldPath = props.entry?.path ?? "";
                                     let newFilePath = `${oldPath.substring(0, oldPath.lastIndexOf("/"))}/${filename}`;
-                                    console.log("Move", oldPath, newFilePath);
-                                    await moveEntry(oldPath, newFilePath);
+                                    await FileSystem.renameEntry(oldPath, newFilePath);
+                                    refresh();
                                     onClose();
                                     setIsLoading(false);
                                 }}
