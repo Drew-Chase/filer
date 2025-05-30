@@ -47,7 +47,8 @@ export default function FileTable()
 
     useEffect(() =>
     {
-        if(width < 850){
+        if (width < 850)
+        {
             setSelectedEntries(new Set());
         }
     }, [width]);
@@ -136,8 +137,8 @@ export default function FileTable()
                             </TableCell>
                             <TableCell aria-label="Entry type" hidden={width < 750}>{entry.file_type ?? "Unknown Entry Type"}</TableCell>
                             <TableCell aria-label="File size" hidden={width < 550}>{entry.is_dir ? "-" : FileSystem.formatSize(entry.size)}</TableCell>
-                            <TableCell aria-label="Creation date" hidden={width < 1240}>{entry.is_dir ? "-" : entry.creation_date.toLocaleDateString()}</TableCell>
-                            <TableCell aria-label="Modification date" hidden={width < 1240}>{entry.is_dir ? "-" : entry.last_modified.toLocaleDateString()}</TableCell>
+                            <TableCell aria-label="Creation date" hidden={width < 1240}>{entry.is_dir ? "-" : entry.creation_date?.toLocaleDateString() ?? "-"}</TableCell>
+                            <TableCell aria-label="Modification date" hidden={width < 1240}>{entry.is_dir ? "-" : entry.last_modified?.toLocaleDateString() ?? "-"}</TableCell>
                             <TableCell className="text-right" aria-label="Actions">
                                 <Dropdown
                                     classNames={{

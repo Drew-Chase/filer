@@ -9,8 +9,8 @@ export interface FilesystemEntry
     filename: string;
     path: string;
     size: number;
-    last_modified: Date;
-    creation_date: Date;
+    last_modified?: Date;
+    creation_date?: Date;
     is_dir: boolean;
     file_type?: string;
 }
