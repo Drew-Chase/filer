@@ -92,24 +92,24 @@ export default function License()
                 <div className="section">
                     <h3 className="text-xl font-semibold mb-2">5. Conveying Modified Source Versions.</h3>
                     <p>You may convey a work based on the Program, or the modifications to produce it from the Program, in the form of source code under the terms of section 4, provided that you also meet all of these conditions:</p>
-                    <ul className="list-disc ml-6 mt-2 space-y-1">
-                        <li>The work must carry prominent notices stating that you modified it, and giving a relevant date.</li>
-                        <li>The work must carry prominent notices stating that it is released under this License and any conditions added under section 7.</li>
-                        <li>You must license the entire work, as a whole, under this License to anyone who comes into possession of a copy.</li>
-                        <li>If the work has interactive user interfaces, each must display Appropriate Legal Notices.</li>
-                    </ul>
+                    <div className="ml-6 mt-2 space-y-1">
+                        <p>• The work must carry prominent notices stating that you modified it, and giving a relevant date.</p>
+                        <p>• The work must carry prominent notices stating that it is released under this License and any conditions added under section 7.</p>
+                        <p>• You must license the entire work, as a whole, under this License to anyone who comes into possession of a copy.</p>
+                        <p>• If the work has interactive user interfaces, each must display Appropriate Legal Notices.</p>
+                    </div>
                 </div>
 
                 <div className="section">
                     <h3 className="text-xl font-semibold mb-2">6. Conveying Non-Source Forms.</h3>
                     <p>You may convey a covered work in object code form under the terms of sections 4 and 5, provided that you also convey the machine-readable Corresponding Source under the terms of this License, in one of these ways:</p>
-                    <ul className="list-disc ml-6 mt-2 space-y-1">
-                        <li>Convey the object code in, or embodied in, a physical product accompanied by the Corresponding Source fixed on a durable physical medium.</li>
-                        <li>Convey the object code in, or embodied in, a physical product accompanied by a written offer to provide the Corresponding Source.</li>
-                        <li>Convey individual copies of the object code with a copy of the written offer to provide the Corresponding Source.</li>
-                        <li>Convey the object code by offering access from a designated place, and offer equivalent access to the Corresponding Source.</li>
-                        <li>Convey the object code using peer-to-peer transmission, provided you inform other peers where the object code and Corresponding Source are being offered.</li>
-                    </ul>
+                    <div className="ml-6 mt-2 space-y-1">
+                        <p>• Convey the object code in, or embodied in, a physical product accompanied by the Corresponding Source fixed on a durable physical medium.</p>
+                        <p>• Convey the object code in, or embodied in, a physical product accompanied by a written offer to provide the Corresponding Source.</p>
+                        <p>• Convey individual copies of the object code with a copy of the written offer to provide the Corresponding Source.</p>
+                        <p>• Convey the object code by offering access from a designated place, and offer equivalent access to the Corresponding Source.</p>
+                        <p>• Convey the object code using peer-to-peer transmission, provided you inform other peers where the object code and Corresponding Source are being offered.</p>
+                    </div>
                 </div>
 
                 <div className="section">
