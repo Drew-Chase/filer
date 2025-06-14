@@ -1,5 +1,6 @@
 import {createContext, JSX, ReactNode, useCallback, useContext, useState} from "react";
 import WelcomeStep from "../components/setup/WelcomeStep.tsx";
+import StorageStep from "../components/setup/StorageStep.tsx";
 
 export type Step = {
     title: string;
@@ -30,7 +31,7 @@ const DEFAULT_STEPS: Step[] = [
         description: "Choose where you want to store your files.",
         completed: false,
         active: false,
-        view: null
+        view: <StorageStep/>
     },
     {
         title: "Set up your account",
