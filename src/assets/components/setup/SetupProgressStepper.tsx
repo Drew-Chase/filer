@@ -13,7 +13,7 @@ export default function SetupProgressStepper()
         <div className={"h-full min-w-[300px] w-[300px] bg-white/5 rounded-xl shadow-xl p-6 border border-white/20 flex flex-col gap-4 items-center"}>
             <div className={"flex flex-row items-center gap-2 text-xl font-bold"}><Image src={logo} width={32}/> Filer</div>
             <Progress value={steps.filter(i => i.completed).length} minValue={0} maxValue={steps.length} color={"primary"} size={"sm"}/>
-            <div className={"flex flex-col gap-4"}>
+            <div className={"flex flex-col gap-4 overflow-y-scroll"}>
                 {steps.map((step, index) => (
                     <SetupStep
                         key={`step-${index}`}
@@ -46,7 +46,7 @@ function SetupStep({title, description, completed, active, index, isLastStep, se
             }
                  data-completed={completed}
                  data-active={active}
-                 onClick={setActive}
+                 onClick={completed ? setActive : undefined}
             >
                 <div
                     className={
