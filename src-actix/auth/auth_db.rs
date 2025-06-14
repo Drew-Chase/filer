@@ -1,13 +1,9 @@
 use crate::auth::auth_data::User;
-use crate::auth::permission_flags::PermissionFlags;
+use crate::helpers::db::create_pool;
 use anyhow::Result;
 use bcrypt::DEFAULT_COST;
-use log::LevelFilter;
 use serde_json::json;
-use sqlx::sqlite::SqliteSynchronous::Normal;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
-use sqlx::{ConnectOptions, Error, Executor, SqlitePool};
-use std::str::FromStr;
+use sqlx::{Error, Executor, SqlitePool};
 
 pub async fn initialize() -> Result<()> {
     let pool = create_pool().await?;
@@ -204,17 +200,4 @@ impl User {
         let token = bcrypt::hash(json.to_string(), DEFAULT_COST)?;
         Ok(token)
     }
-}
-
-async fn create_pool() -> Result<SqlitePool> {
-    let options = SqliteConnectOptions::from_str("sqlite:./app.db")?
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .log_statements(LevelFilter::Trace)
-        .synchronous(Normal);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(10)
-        .connect_with(options)
-        .await?;
-    Ok(pool)
 }

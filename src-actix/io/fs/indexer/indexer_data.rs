@@ -1,5 +1,5 @@
 use crate::configuration::configuration_data::Configuration;
-use crate::io::fs::indexer;
+use crate::helpers::db::create_pool;
 use anyhow::{Context, Result};
 use log::{debug, error, info, warn};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -37,7 +37,7 @@ pub async fn index_all_files() -> Result<()> {
     let ignored_paths = &config.filter;
 
     // Create a database connection pool
-    let pool = indexer::indexer_db::create_pool().await?;
+    let pool = create_pool().await?;
 
     // Get all disk mount points
     let disks = sysinfo::Disks::new_with_refreshed_list();
@@ -333,7 +333,7 @@ impl IndexerData {
 
     // Utility method to get all indexed files
     pub async fn get_all() -> Result<Vec<Self>> {
-        let pool = indexer::indexer_db::create_pool().await?;
+        let pool = create_pool().await?;
         let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes"#)
             .fetch_all(&pool)
             .await?;
@@ -342,7 +342,7 @@ impl IndexerData {
 
     // Utility method to check database statistics
     pub async fn get_stats() -> Result<(u64, u64, u64)> {
-        let pool = indexer::indexer_db::create_pool().await?;
+        let pool = create_pool().await?;
 
         // Get total count
         let count: (i64,) = sqlx::query_as(r#"select count(*) from indexes"#)
