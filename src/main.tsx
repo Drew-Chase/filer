@@ -16,6 +16,7 @@ import {FavoritesProvider} from "./assets/providers/FavoritesProvider.tsx";
 import {WindowProvider} from "./assets/providers/WindowProvider.tsx";
 import {hasCompletedFirstSetup} from "./assets/ts/first-setup.ts";
 import SetupPage from "./assets/pages/SetupPage.tsx";
+import {SetupProvider} from "./assets/providers/SetupProvider.tsx";
 
 
 ReactDOM.createRoot($("#root")[0]!).render(
@@ -56,7 +57,7 @@ export function MainContentRenderer()
             <Navigation/>
             <Routes>
                 <Route>
-                    {!firstSetup ? (<Route path={"/*"} element={<SetupPage/>}/>) : (<>
+                    {!firstSetup ? (<Route path={"/*"} element={<SetupProvider><SetupPage/></SetupProvider>}/>) : (<>
                         <Route path="/" element={<LoginPage/>}/>
                         <Route path={"/files/*"} element={<FilesPage/>}/>
                         <Route path={"/*"} element={<ErrorPage/>}/>
