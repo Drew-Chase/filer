@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect} from "react";
 import {BrowserRouter, Route, Routes, useNavigate} from "react-router-dom";
 import ReactDOM from "react-dom/client";
 import $ from "jquery";
@@ -14,6 +14,8 @@ import ErrorPage from "./assets/pages/ErrorPage.tsx";
 import {FileSystemEntryProvider} from "./assets/providers/FileSystemEntryProvider.tsx";
 import {FavoritesProvider} from "./assets/providers/FavoritesProvider.tsx";
 import {WindowProvider} from "./assets/providers/WindowProvider.tsx";
+import {hasCompletedFirstSetup} from "./assets/ts/first-setup.ts";
+import SetupPage from "./assets/pages/SetupPage.tsx";
 
 
 ReactDOM.createRoot($("#root")[0]!).render(
@@ -37,6 +39,11 @@ ReactDOM.createRoot($("#root")[0]!).render(
 export function MainContentRenderer()
 {
     const navigate = useNavigate();
+    const [firstSetup, setFirstSetup] = React.useState<boolean>(false);
+    useEffect(() =>
+    {
+        hasCompletedFirstSetup().then(setFirstSetup);
+    }, []);
     return (
         <HeroUIProvider navigate={navigate}>
             <ToastProvider
@@ -49,9 +56,11 @@ export function MainContentRenderer()
             <Navigation/>
             <Routes>
                 <Route>
-                    <Route path="/" element={<LoginPage/>}/>
-                    <Route path={"/files/*"} element={<FilesPage/>}/>
-                    <Route path={"/*"} element={<ErrorPage/>}/>
+                    {!firstSetup ? (<Route path={"/*"} element={<SetupPage/>}/>) : (<>
+                        <Route path="/" element={<LoginPage/>}/>
+                        <Route path={"/files/*"} element={<FilesPage/>}/>
+                        <Route path={"/*"} element={<ErrorPage/>}/>
+                    </>)}
                 </Route>
             </Routes>
         </HeroUIProvider>
