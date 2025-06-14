@@ -17,12 +17,14 @@ use tokio::fs;
 use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
 use crate::configuration::configuration_endpoint;
+use crate::internal_configuration::{ic_db, ic_endpoint};
 
 mod arguments;
 mod auth;
 mod configuration;
-mod helpers;
+pub(crate) mod helpers;
 pub mod io;
+mod internal_configuration;
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder()
@@ -72,6 +74,7 @@ pub async fn run() -> Result<()> {
     };
 
     auth_db::initialize().await?;
+    ic_db::initialize().await?;
 
     // Start file indexing and watcher in a separate task to avoid blocking server startup
     if !args.disable_indexing && config.indexing_enabled {
@@ -112,6 +115,7 @@ pub async fn run() -> Result<()> {
                     .configure(auth_endpoint::configure)
                     .configure(filesystem_endpoint::configure)
                     .configure(configuration_endpoint::configure)
+                    .configure(ic_endpoint::configure)
                     // Handle unmatched API endpoints
                     .default_service(web::to(|| async {
                         HttpResponse::NotFound().json(json!({"error": "API endpoint not found"}))
