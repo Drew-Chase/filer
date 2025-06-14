@@ -1,82 +1,13 @@
-use crate::auth::auth_data::User;
+use crate::auth::auth_data::{CreateUserRequest, LoginRequest, LoginResponse, UpdateUserRequest, User};
 use crate::auth::permission_flags::PermissionFlags;
 use crate::helpers::http_error::Result;
-use actix_web::{HttpRequest, HttpResponse, delete, get, post, put, web};
-use anyhow::Error;
-use enumflags2::BitFlags;
-use serde::{Deserialize, Serialize};
+use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse};
 use serde_json::json;
 
-#[derive(Deserialize)]
-struct CreateUserRequest {
-    username: String,
-    password: String,
-    permissions: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct LoginRequest {
-    username: String,
-    password: String,
-    remember: Option<bool>,
-}
-
-#[derive(Serialize)]
-struct LoginResponse {
-    token: String,
-    username: String,
-}
-
-#[derive(Deserialize)]
-struct UpdateUserRequest {
-    password: Option<String>,
-    permissions: Option<Vec<String>>,
-}
-
-#[derive(Serialize)]
-struct UserResponse {
-    id: u64,
-    username: String,
-    permissions: Vec<String>,
-}
-
-impl From<User> for UserResponse {
-    fn from(user: User) -> Self {
-        let permissions = user
-            .permissions
-            .iter()
-            .map(|p| format!("{:?}", p))
-            .collect();
-
-        UserResponse {
-            id: user.id,
-            username: user.username,
-            permissions,
-        }
-    }
-}
-
-fn parse_permissions(permissions: &[String]) -> Result<BitFlags<PermissionFlags>> {
-    let mut flags = BitFlags::empty();
-
-    for permission in permissions {
-        match permission.as_str() {
-            "Read" => flags |= PermissionFlags::Read,
-            "Write" => flags |= PermissionFlags::Write,
-            "Delete" => flags |= PermissionFlags::Delete,
-            "Create" => flags |= PermissionFlags::Create,
-            "Upload" => flags |= PermissionFlags::Upload,
-            "Download" => flags |= PermissionFlags::Download,
-            _ => Err(Error::msg("Invalid permission"))?,
-        }
-    }
-
-    Ok(flags)
-}
 
 #[post("/users")]
 async fn create_user(user_data: web::Json<CreateUserRequest>) -> Result<HttpResponse> {
-    let permissions = parse_permissions(&user_data.permissions)?;
+    let permissions = PermissionFlags::from_strings(&user_data.permissions)?;
 
     if User::exists(&user_data.username).await? {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -102,8 +33,7 @@ async fn create_user(user_data: web::Json<CreateUserRequest>) -> Result<HttpResp
 #[get("/users")]
 async fn list_users() -> Result<HttpResponse> {
     let users = User::list().await?;
-    let user_responses: Vec<UserResponse> = users.into_iter().map(UserResponse::from).collect();
-    Ok(HttpResponse::Ok().json(user_responses))
+    Ok(HttpResponse::Ok().json(users))
 }
 
 #[get("/users/{username}")]
@@ -111,7 +41,7 @@ async fn get_user(path: web::Path<String>) -> Result<HttpResponse> {
     let username = path.into_inner();
 
     match User::get_by_username(&username).await? {
-        Some(user) => Ok(HttpResponse::Ok().json(UserResponse::from(user))),
+        Some(user) => Ok(HttpResponse::Ok().json(user)),
         None => Ok(HttpResponse::NotFound().json(json!({
             "error": format!("User {} not found", username)
         }))),
@@ -139,7 +69,7 @@ async fn update_user(
     }
 
     if let Some(permissions) = &user_data.permissions {
-        user.permissions = parse_permissions(permissions)?;
+        user.permissions = PermissionFlags::from_strings(permissions)?;
     }
 
     user.update().await?;

@@ -1,7 +1,34 @@
 use crate::auth::permission_flags::PermissionFlags;
 use enumflags2::BitFlags;
+use serde::{Deserialize, Serialize};
 use serde_hash::HashIds;
 use sqlx::{FromRow, Row};
+
+#[derive(Deserialize)]
+pub struct CreateUserRequest {
+    pub username: String,
+    pub password: String,
+    pub permissions: Vec<String>,
+}
+
+#[derive(Deserialize)]
+pub struct LoginRequest {
+    pub username: String,
+    pub password: String,
+    pub remember: Option<bool>,
+}
+
+#[derive(Serialize)]
+pub struct LoginResponse {
+    pub token: String,
+    pub username: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateUserRequest {
+    pub password: Option<String>,
+    pub permissions: Option<Vec<String>>,
+}
 
 #[derive(Debug, HashIds)]
 pub struct User {
