@@ -1,4 +1,4 @@
-use crate::configuration::Configuration;
+use crate::configuration::configuration_data::Configuration;
 use crate::io::fs::indexer;
 use anyhow::{Context, Result};
 use log::{debug, error, info, warn};
