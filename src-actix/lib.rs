@@ -1,6 +1,6 @@
 use crate::arguments::FilerArguments;
 use crate::auth::{auth_db, auth_endpoint};
-use crate::configuration::Configuration;
+use crate::configuration::configuration_data::Configuration;
 use crate::helpers::asset_endpoint::AssetsAppConfig;
 use crate::helpers::constants::DEBUG;
 use crate::io::fs::indexer::indexer_data::IndexerData;
@@ -16,6 +16,7 @@ use std::env::set_current_dir;
 use tokio::fs;
 use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
+use crate::configuration::configuration_endpoint;
 
 mod arguments;
 mod auth;
@@ -35,7 +36,7 @@ pub async fn run() -> Result<()> {
     if DEBUG {
         ProxyViteOptions::new().log_level(Info).build()?;
         std::thread::spawn(|| {
-            let mut crashes:u8 = 0;
+            let mut crashes: u8 = 0;
             loop {
                 info!("Starting Vite server in development mode...");
                 let status = start_vite_server()
@@ -49,7 +50,9 @@ pub async fn run() -> Result<()> {
                     break;
                 }
                 if crashes > 5 {
-                    error!("The vite server has crashed 5 times in a row. Vite will not be restarted.");
+                    error!(
+                        "The vite server has crashed 5 times in a row. Vite will not be restarted."
+                    );
                 }
                 std::thread::sleep(std::time::Duration::from_secs(5));
             }
@@ -80,7 +83,6 @@ pub async fn run() -> Result<()> {
                 }
             });
         }
-
         if !args.disable_filewatchers && config.file_watcher_enabled {
             tokio::spawn(async {
                 // Start file watcher
@@ -109,6 +111,7 @@ pub async fn run() -> Result<()> {
                 web::scope("/api")
                     .configure(auth_endpoint::configure)
                     .configure(filesystem_endpoint::configure)
+                    .configure(configuration_endpoint::configure)
                     // Handle unmatched API endpoints
                     .default_service(web::to(|| async {
                         HttpResponse::NotFound().json(json!({"error": "API endpoint not found"}))
