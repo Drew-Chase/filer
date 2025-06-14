@@ -23,32 +23,12 @@ CREATE TABLE IF NOT EXISTS users
 "#,
     )
     .await?;
-    User::try_create_default_user(&pool).await?;
     pool.close().await;
 
     Ok(())
 }
 
 impl User {
-    pub async fn try_create_default_user(pool: &SqlitePool) -> Result<()> {
-        if !Self::exists_with_connection("filer", pool).await? {
-            User {
-                id: 0,
-                username: "filer".to_string(),
-                password: "filer".to_string(),
-                permissions: PermissionFlags::Read
-                    | PermissionFlags::Write
-                    | PermissionFlags::Delete
-                    | PermissionFlags::Create
-                    | PermissionFlags::Upload
-                    | PermissionFlags::Download,
-            }
-            .create_with_pool(pool)
-            .await?;
-        }
-
-        Ok(())
-    }
     pub async fn create(&self) -> Result<()> {
         let pool = create_pool().await?;
         self.create_with_pool(&pool).await
