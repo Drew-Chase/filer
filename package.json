@@ -9,11 +9,7 @@
 	"type": "module",
 	"scripts": {
 		"build-api": "cargo build --release",
-		"run-api": "cargo run --bin filer",
-		"dev": "vite",
 		"build-frontend": "tsc && vite build",
-		"lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-		"watch": "cargo watch -x \"run --bin filer\" -C dist -N --why -w ../src-actix/",
 		"build": "pnpm run \"build-frontend\" && pnpm run \"build-api\""
 	},
 	"dependencies": {
