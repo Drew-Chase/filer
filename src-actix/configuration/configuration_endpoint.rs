@@ -1,7 +1,7 @@
 use crate::configuration::configuration_data::Configuration;
 use crate::helpers::http_error::Result;
-use actix_web::{delete, Responder};
 use actix_web::{HttpResponse, get, post, web};
+use actix_web::{Responder, delete};
 use serde_json::json;
 use std::collections::HashMap;
 
@@ -23,8 +23,8 @@ pub async fn update_config(body: web::Json<Configuration>) -> Result<impl Respon
 
 #[delete("/")]
 pub async fn reset_config() -> Result<impl Responder> {
-    Configuration::default().save()?;	
-	Ok(HttpResponse::Ok().finish())
+    Configuration::default().save()?;
+    Ok(HttpResponse::Ok().finish())
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
