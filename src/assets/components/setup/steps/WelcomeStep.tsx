@@ -1,12 +1,12 @@
 import {m} from "framer-motion";
 import {Button, Link} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
-import License from "./License.tsx";
-import {useSetup} from "../../providers/SetupProvider.tsx";
+import License from "../License.tsx";
+import {useSetup} from "../../../providers/SetupProvider.tsx";
 
 export default function WelcomeStep()
 {
-    const {completeStep, gotoStep} = useSetup();
+    const {completeStep, gotoStep, currentIndex} = useSetup();
     return (
         <m.div
             key="welcome"
@@ -21,7 +21,7 @@ export default function WelcomeStep()
                 <p className={"text-lg text-center opacity-75"}>
                     Filer is a powerful remote file management tool designed to help you organize, search, and manage your files efficiently.
                 </p>
-                <div className={"w-[50vw] min-h-[300px] h-[300px] grow overflow-y-auto p-4 bg-white/10 rounded-lg"}>
+                <div className={"w-[50vw] min-h-[300px] h-[calc(100dvh_-_550px)] grow overflow-y-auto p-4 bg-white/10 rounded-lg"}>
                     <License/>
                 </div>
                 <p className={"text-sm text-center opacity-75 italic"}>
@@ -30,10 +30,10 @@ export default function WelcomeStep()
                 <div className={"flex flex-row gap-4 w-[60%]"}>
                     <Button color={"secondary"} size={"lg"} variant={"solid"} radius={"full"} endContent={<Icon icon={"carbon:next-filled"}/>} className={"w-full"} onPress={() =>
                     {
-                        completeStep(0);
-                        gotoStep(1);
+                        completeStep(currentIndex);
+                        gotoStep(currentIndex + 1);
                     }}>Get Started</Button>
-                    <Button variant={"ghost"} size={"lg"} radius={"full"} className={"w-full"} startContent={<Icon icon="mdi:github"/>} as={Link} href={"https://github.com/drew-chase/filer"} target={"_blank"}>Source Code</Button>
+                    <Button variant={"ghost"} size={"lg"} radius={"full"} className={"w-full"} startContent={<Icon icon="mdi:github"/>} as={Link} href={"https://github.com/drew-chase/filer/wiki"} target={"_blank"}>Wiki</Button>
                 </div>
             </div>
         </m.div>
