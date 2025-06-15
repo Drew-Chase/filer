@@ -13,6 +13,7 @@ pub struct FilesystemEntry {
     pub is_dir: bool,
 }
 
+
 #[derive(Serialize)]
 pub struct FilesystemData {
     pub parent: Option<String>,
@@ -32,9 +33,7 @@ impl TryFrom<PathBuf> for FilesystemEntry {
             .to_string();
 
         // Get path string and ensure it's properly formatted for the platform
-        let path_str = path
-            .to_str()
-            .ok_or(anyhow!("Unable to convert to str"))?;
+        let path_str = path.to_str().ok_or(anyhow!("Unable to convert to str"))?;
 
         // On Unix systems, ensure the path starts with "/"
         #[cfg(unix)]
@@ -65,10 +64,10 @@ impl TryFrom<PathBuf> for FilesystemData {
     type Error = anyhow::Error;
 
     fn try_from(path: PathBuf) -> anyhow::Result<Self> {
-        // Handle empty or root path differently on Windows vs Unix
+        // Handle an empty or root path differently on Windows vs. Unix
         #[cfg(windows)]
-        let path = if path.to_str().map_or(false, |p| p.is_empty() || p == "/") {
-            // On Windows, empty or "/" path is handled in filesystem_endpoint.rs
+        let path = if path.to_str().is_some_and(|p| p.is_empty() || p == "/") {
+            // On Windows, an empty or "/" path is handled in filesystem_endpoint.rs
             // to show drives, so we just use a valid path here
             path
         } else {
@@ -81,7 +80,7 @@ impl TryFrom<PathBuf> for FilesystemData {
 
         #[cfg(unix)]
         let path = if path.to_str().map_or(false, |p| p.is_empty()) {
-            // On Unix, empty path should be treated as root
+            // On Unix, an empty path should be treated as a root
             PathBuf::from("/")
         } else {
             // For non-empty paths on Unix, ensure they start with "/"
@@ -131,10 +130,7 @@ impl TryFrom<PathBuf> for FilesystemData {
             }
         });
 
-        Ok(FilesystemData {
-            parent,
-            entries,
-        })
+        Ok(FilesystemData { parent, entries })
     }
 }
 
