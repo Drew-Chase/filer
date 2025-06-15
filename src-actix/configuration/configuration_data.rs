@@ -9,10 +9,23 @@ static CONFIGURATION_PATH: OnceLock<Option<String>> = OnceLock::new();
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Configuration {
     pub port: u16,
+    pub root_path: String,
     pub indexing_enabled: bool,
     pub file_watcher_enabled: bool,
     pub filter_mode_whitelist: bool,
     pub filter: Vec<String>,
+    pub max_file_size: u64,
+    pub included_extensions: Vec<String>,
+    pub exclude_hidden_files: bool,
+    pub enable_thumbnails: bool,
+    pub max_cache_size: u64,
+    // Network configuration
+    pub http_root_path: String,
+    pub upnp_enabled: bool,
+    pub authorized_hosts: Vec<String>,
+    pub max_connections: u32,
+    pub enable_ssl: bool,
+    pub cors_enabled: bool,
 }
 
 impl Configuration {
@@ -45,7 +58,17 @@ impl Configuration {
             return Ok(Self::default());
         }
         let file_contents = std::fs::read_to_string(path)?;
-        Ok(serde_json::from_str(file_contents.as_str())?)
+        if let Ok(config) = serde_json::from_str::<Configuration>(file_contents.as_str()) {
+            debug!("Configuration loaded successfully");
+            if CONFIGURATION.set(config.clone()).is_err() {
+                warn!("Failed to set configuration in global state, using default");
+            }
+            Ok(config)
+        } else {
+            warn!("Configuration file is invalid, resetting to default");
+            Self::reset()?;
+            Ok(Self::default())
+        }
     }
     pub fn save(&self) -> anyhow::Result<()> {
         let path = Self::get_path()
@@ -108,21 +131,48 @@ impl Default for Configuration {
             "**/Tmp/**",
             "**/tmp/**",
             "**/temp/**",
-            current_exe_path.as_str()
+            current_exe_path.as_str(),
         ];
-        
+
         if current_exe_path != cwd {
             ignored_paths.push(cwd.as_str())
         }
 
         let ignored_paths = ignored_paths.into_iter().map(String::from).collect();
+        let server_computer_ip_address = if let Some(ip) = local_ipaddress::get() {
+            ip
+        } else {
+            "".to_string()
+        };
 
         Self {
             port: 7667,
-            indexing_enabled: true,
-            file_watcher_enabled: true,
+            root_path: "/".to_string(),
+            indexing_enabled: false,
+            file_watcher_enabled: false,
             filter_mode_whitelist: false,
             filter: ignored_paths,
+            max_file_size: 1000,
+            included_extensions: vec![
+                ".txt".to_string(),
+                ".pdf".to_string(),
+                ".doc".to_string(),
+                ".docx".to_string(),
+                ".jpg".to_string(),
+                ".png".to_string(),
+                ".mp4".to_string(),
+                ".mp3".to_string(),
+            ],
+            exclude_hidden_files: false,
+            enable_thumbnails: true,
+            max_cache_size: 500,
+            // Network defaults
+            http_root_path: "/".to_string(),
+            upnp_enabled: false,
+            authorized_hosts: vec!["127.0.0.1".to_string(), "localhost".to_string(), server_computer_ip_address],
+            max_connections: 100,
+            enable_ssl: false,
+            cors_enabled: true,
         }
     }
 }
