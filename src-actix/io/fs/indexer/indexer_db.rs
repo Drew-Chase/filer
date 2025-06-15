@@ -1,11 +1,7 @@
-use crate::io::fs::indexer::indexer_data::IndexerData;
-use log::LevelFilter;
-use sqlx::sqlite::SqliteSynchronous::Normal;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
-use sqlx::{ConnectOptions, Executor, Row, SqlitePool};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use crate::helpers::db::create_pool;
+use crate::io::fs::indexer::indexer_data::IndexerData;
+use sqlx::{Executor, Row, SqlitePool};
+use std::path::{Path, PathBuf};
 
 pub async fn initialize() -> anyhow::Result<()> {
     let pool = create_pool().await?;
@@ -39,17 +35,15 @@ pub async fn initialize() -> anyhow::Result<()> {
     .await?;
 
     // Create an index on trigrams for faster searching
-    pool.execute(
-        r#"CREATE INDEX IF NOT EXISTS idx_trigram ON path_trigrams(trigram);"#,
-    )
-    .await?;
+    pool.execute(r#"CREATE INDEX IF NOT EXISTS idx_trigram ON path_trigrams(trigram);"#)
+        .await?;
 
     // Check if the trigram table is empty
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM path_trigrams")
         .fetch_one(&pool)
         .await?;
 
-    // If the trigram table is empty but we have data in the indexes table,
+    // If the trigram table is empty, but we have data in the index table,
     // rebuild the trigram index
     if count == 0 {
         let index_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexes")
@@ -57,7 +51,10 @@ pub async fn initialize() -> anyhow::Result<()> {
             .await?;
 
         if index_count > 0 {
-            log::info!("Rebuilding trigram index for {} existing records...", index_count);
+            log::info!(
+                "Rebuilding trigram index for {} existing records...",
+                index_count
+            );
             rebuild_trigram_index().await?;
             log::info!("Trigram index rebuilt successfully.");
         }
@@ -99,13 +96,11 @@ impl IndexerData {
 
         // Insert trigrams
         for trigram in all_trigrams {
-            sqlx::query(
-                r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#
-            )
-            .bind(id)
-            .bind(&trigram)
-            .execute(&mut *tx)
-            .await?;
+            sqlx::query(r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#)
+                .bind(id)
+                .bind(&trigram)
+                .execute(&mut *tx)
+                .await?;
         }
 
         // Commit the transaction
@@ -160,13 +155,11 @@ impl IndexerData {
 
         // Insert trigrams
         for trigram in all_trigrams {
-            sqlx::query(
-                r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#
-            )
-            .bind(id)
-            .bind(&trigram)
-            .execute(&mut *tx)
-            .await?;
+            sqlx::query(r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#)
+                .bind(id)
+                .bind(&trigram)
+                .execute(&mut *tx)
+                .await?;
         }
 
         // Commit the transaction
@@ -299,9 +292,10 @@ impl IndexerData {
             let exact_pattern = format!("%{}%", search_term);
 
             let field = if filename_only { "filename" } else { "path" };
-            let exact_results = sqlx::query_as::<_, IndexerData>(
-                &format!(r#"SELECT * FROM indexes WHERE {} LIKE ? LIMIT 100"#, field)
-            )
+            let exact_results = sqlx::query_as::<_, IndexerData>(&format!(
+                r#"SELECT * FROM indexes WHERE {} LIKE ? LIMIT 100"#,
+                field
+            ))
             .bind(&exact_pattern)
             .fetch_all(&pool)
             .await?;
@@ -333,7 +327,7 @@ impl IndexerData {
                      CASE WHEN i.{} LIKE ? THEN 1 ELSE 0 END DESC,
                      LENGTH(i.{})
             LIMIT 100"#,
-            sql_condition, 
+            sql_condition,
             placeholders,
             if filename_only { "filename" } else { "path" },
             if filename_only { "filename" } else { "path" }
@@ -371,9 +365,10 @@ impl IndexerData {
             let like_pattern = format!("%{}%", search_term);
             let field = if filename_only { "filename" } else { "path" };
 
-            let like_results = sqlx::query_as::<_, IndexerData>(
-                &format!(r#"SELECT * FROM indexes WHERE {} LIKE ? LIMIT 100"#, field)
-            )
+            let like_results = sqlx::query_as::<_, IndexerData>(&format!(
+                r#"SELECT * FROM indexes WHERE {} LIKE ? LIMIT 100"#,
+                field
+            ))
             .bind(&like_pattern)
             .fetch_all(&pool)
             .await?;
@@ -413,14 +408,18 @@ pub async fn rebuild_trigram_index() -> anyhow::Result<()> {
     let pool = create_pool().await?;
 
     // Clear existing trigrams
-    sqlx::query("DELETE FROM path_trigrams").execute(&pool).await?;
+    sqlx::query("DELETE FROM path_trigrams")
+        .execute(&pool)
+        .await?;
 
     // Get all indexes data
-    let rows = sqlx::query("SELECT id, path, filename FROM indexes").fetch_all(&pool).await?;
+    let rows = sqlx::query("SELECT id, path, filename FROM indexes")
+        .fetch_all(&pool)
+        .await?;
 
     // Process in batches of 1000 to avoid excessive memory usage
     let batch_size = 1000;
-    let total_batches = (rows.len() + batch_size - 1) / batch_size;
+    let total_batches = rows.len().div_ceil(batch_size);
 
     for batch_idx in 0..total_batches {
         let start_idx = batch_idx * batch_size;
@@ -448,13 +447,11 @@ pub async fn rebuild_trigram_index() -> anyhow::Result<()> {
 
             // Insert trigrams
             for trigram in all_trigrams {
-                sqlx::query(
-                    r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#
-                )
-                .bind(id)
-                .bind(&trigram)
-                .execute(&mut *tx)
-                .await?;
+                sqlx::query(r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#)
+                    .bind(id)
+                    .bind(&trigram)
+                    .execute(&mut *tx)
+                    .await?;
             }
         }
 
@@ -463,4 +460,3 @@ pub async fn rebuild_trigram_index() -> anyhow::Result<()> {
 
     Ok(())
 }
-
