@@ -2,7 +2,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-    plugins: [react()],
+    plugins: [react({
+        // Include specific file patterns for React refresh
+        include: "**/*.{jsx,tsx}",
+        // Enable babel for better hot reload support
+        babel: {
+            plugins: [],
+        }
+    })],
     css: {
         postcss: './postcss.config.js'
     },
@@ -30,5 +37,10 @@ export default defineConfig({
     },
     build: {
         outDir: "target/wwwroot"
+    },
+    // Optimize dependencies to avoid context reload issues
+    optimizeDeps: {
+        include: ['react', 'react-dom'],
+        force: true
     }
 });
