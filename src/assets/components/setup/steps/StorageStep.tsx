@@ -2,7 +2,8 @@ import {m} from "framer-motion";
 import {useSetup} from "../../../providers/SetupProvider.tsx";
 import {Button, Chip, Input, Link, NumberInput, Radio, RadioGroup, Select, SelectItem, Switch, Textarea} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
-import {useState, useEffect} from "react";
+import {useEffect, useState} from "react";
+import SelectDirectoryEntryModal from "../../modals/SelectDirectoryEntryModal.tsx";
 
 interface StorageSettings
 {
@@ -85,6 +86,7 @@ export default function StorageStep()
     const [isLoading, setIsLoading] = useState(true);
     const [apiError, setApiError] = useState<string | null>(null);
     const [apiSuccess, setApiSuccess] = useState<string | null>(null);
+    const [isSelectingStorageRoot, setIsSelectingStorageRoot] = useState(false);
 
     // Load current configuration on component mount
     useEffect(() =>
@@ -174,12 +176,6 @@ export default function StorageStep()
         }));
     };
 
-    const handleBrowseFolder = () =>
-    {
-        // This would typically open a folder browser dialog.
-        // For now, we'll just show an alert
-        alert("Folder browser would open here. For demo purposes, you can manually enter the path.");
-    };
 
     const saveConfiguration = async (configData: CreateStorageConfigRequest): Promise<void> =>
     {
@@ -281,6 +277,20 @@ export default function StorageStep()
             exit={{opacity: 0, x: 20}}
             transition={{duration: 0.25, ease: "easeInOut"}}
         >
+            <SelectDirectoryEntryModal
+                isOpen={isSelectingStorageRoot}
+                onClose={
+                    (newRootPath) =>
+                    {
+                        setIsSelectingStorageRoot(false);
+                        if (newRootPath)
+                        {
+                            setStorageSettings(prev => ({...prev, root_path: newRootPath}));
+                        }
+                    }
+                }
+                label={"Storage Root"}
+            />
             {/* Fixed Buttons */}
             <Button
                 variant={"light"}
@@ -318,14 +328,14 @@ export default function StorageStep()
 
                 {/* Error/Success Messages */}
                 {apiError && (
-                    <div className={"mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm mt-6"}>
+                    <div className={"mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm mt-6 flex flex-row items-center"}>
                         <Icon icon={"mdi:alert-circle"} className={"inline mr-2"}/>
                         {apiError}
                     </div>
                 )}
 
                 {apiSuccess && (
-                    <div className={"mb-4 p-3 bg-green-500/20 border border-green-500/40 rounded-lg text-green-300 text-sm mt-6"}>
+                    <div className={"mb-4 p-3 bg-green-500/20 border border-green-500/40 rounded-lg text-green-300 text-sm mt-6 flex flex-row items-center"}>
                         <Icon icon={"mdi:check-circle"} className={"inline mr-2"}/>
                         {apiSuccess}
                     </div>
@@ -351,15 +361,16 @@ export default function StorageStep()
                                     description="The root directory to serve files from"
                                     variant="bordered"
                                     className={"flex-1"}
+                                    endContent={
+                                        <Button
+                                            color="secondary"
+                                            variant="light"
+                                            onPress={() => setIsSelectingStorageRoot(true)}
+                                        >
+                                            <Icon icon={"mdi:folder-search"}/>
+                                        </Button>
+                                    }
                                 />
-                                <Button
-                                    color="secondary"
-                                    variant="bordered"
-                                    onPress={handleBrowseFolder}
-                                    className={"px-4 self-end mb-6"}
-                                >
-                                    <Icon icon={"mdi:folder-search"}/>
-                                </Button>
                             </div>
                         </m.div>
 
