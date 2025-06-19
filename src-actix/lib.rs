@@ -67,11 +67,7 @@ pub async fn run() -> Result<()> {
     Configuration::load()?;
     let config = Configuration::get();
 
-    let port = if args.port.is_some() {
-        args.port.unwrap()
-    } else {
-        config.port
-    };
+    let port = args.port.unwrap_or(config.port);
 
     auth_db::initialize().await?;
     ic_db::initialize().await?;
