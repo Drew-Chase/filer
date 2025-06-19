@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="app" uuid="733b0bc1-484a-4664-8d6b-57a7218651b4">
+    <data-source source="LOCAL" name="Filer App Database" uuid="f42a04f8-277f-430a-b618-778e542766df">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:F:\JetBrains\RustRover\filer\target\dev-env\app.db</jdbc-url>
+      <jdbc-url>jdbc:sqlite:.\target\dev-env\app.db</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
       <libraries>
         <library>
