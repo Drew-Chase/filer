@@ -33,12 +33,15 @@ impl Configuration {
         if let Some(config) = CONFIGURATION.get() {
             config
         } else {
-            CONFIGURATION.set(Self::default()).unwrap();
-            CONFIGURATION.get().unwrap()
+            CONFIGURATION.set(Self::default())
+                .expect("Failed to set default configuration in OnceLock");
+            CONFIGURATION.get()
+                .expect("Failed to get configuration from OnceLock after setting default")
         }
     }
     pub fn get_path() -> &'static Option<String> {
-        CONFIGURATION_PATH.get().unwrap()
+        CONFIGURATION_PATH.get()
+            .expect("Configuration path OnceLock not initialized")
     }
     pub fn set_path(path: impl AsRef<Path>) -> anyhow::Result<()> {
         debug!("Setting configuration path to {:?}", path.as_ref());
@@ -87,17 +90,23 @@ impl Configuration {
 
 impl Default for Configuration {
     fn default() -> Self {
+        // Get current executable path, falling back to empty string if it fails
         let current_exe_path = std::env::current_exe()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
+            .ok()
+            .and_then(|path| path.parent().map(|p| p.to_string_lossy().to_string()))
+            .unwrap_or_else(|| {
+                warn!("Failed to get current executable path, using empty string");
+                String::new()
+            });
         let current_exe_path = current_exe_path.as_str().replace('\\', "/");
+
+        // Get current working directory, falling back to empty string if it fails
         let cwd = std::env::current_dir()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|_| {
+                warn!("Failed to get current working directory, using empty string");
+                String::new()
+            });
         let cwd = cwd.as_str().replace('\\', "/");
         let cwd = format!("{}/**/*", cwd);
         let current_exe_path = format!("{}/**/*", current_exe_path);
