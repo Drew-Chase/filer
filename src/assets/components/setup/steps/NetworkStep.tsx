@@ -244,14 +244,14 @@ export default function NetworkStep()
 
                 {/* Error/Success Messages */}
                 {apiError && (
-                    <div className={"mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm mt-6"}>
+                    <div className={"mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm mt-6 flex flex-row items-center"}>
                         <Icon icon={"mdi:alert-circle"} className={"inline mr-2"}/>
                         {apiError}
                     </div>
                 )}
 
                 {apiSuccess && (
-                    <div className={"mb-4 p-3 bg-green-500/20 border border-green-500/40 rounded-lg text-green-300 text-sm mt-6"}>
+                    <div className={"mb-4 p-3 bg-green-500/20 border border-green-500/40 rounded-lg text-green-300 text-sm mt-6 flex flex-row items-center"}>
                         <Icon icon={"mdi:check-circle"} className={"inline mr-2"}/>
                         {apiSuccess}
                     </div>
