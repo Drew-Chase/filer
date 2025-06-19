@@ -57,10 +57,10 @@ export function MainContentRenderer()
             <Navigation/>
             <Routes>
                 <Route>
-                    {!firstSetup ? (<Route path={"/*"} element={<SetupProvider><SetupPage/></SetupProvider>}/>) : (<>
-                        <Route path="/" element={<LoginPage/>}/>
-                        <Route path={"/files/*"} element={<FilesPage/>}/>
-                        <Route path={"/*"} element={<ErrorPage/>}/>
+                    {!firstSetup ? (<Route path={"*"} element={<SetupProvider><SetupPage/></SetupProvider>}/>) : (<>
+                        <Route path="" element={<LoginPage/>}/>
+                        <Route path={"files/*"} element={<FilesPage/>}/>
+                        <Route path={"*"} element={<ErrorPage/>}/>
                     </>)}
                 </Route>
             </Routes>
