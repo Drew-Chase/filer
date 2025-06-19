@@ -8,7 +8,7 @@ use crate::io::fs::indexer::indexer_data::IndexerData;
 use crate::io::fs::normalize_path::NormalizePath;
 use actix_web::http::header::ContentDisposition;
 use actix_web::web::Query;
-use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, web};
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_lab::__reexports::futures_util::StreamExt;
 use actix_web_lab::sse::{Data, Event, Sse};
 use log::*;
@@ -18,17 +18,17 @@ use std::ffi::OsStr;
 use std::io;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use sysinfo::Disks;
 use tokio::fs;
 use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 use tokio::io::duplex;
-use tokio::sync::Mutex;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 use tokio_util::io::ReaderStream;
 
 // At module level
@@ -61,11 +61,16 @@ async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> 
         Some(header) => match header.to_str() {
             Ok(path_str) => path_str.to_os_path(),
             Err(_) => {
-                return Err(Error::invalid_input("X-Filesystem-Path header is not a valid string"));
+                return Err(Error::invalid_input(
+                    "X-Filesystem-Path header is not a valid string",
+                ));
             }
         },
         None => {
-            return Err(Error::validation_error("X-Filesystem-Path header is missing", Some("X-Filesystem-Path")));
+            return Err(Error::validation_error(
+                "X-Filesystem-Path header is missing",
+                Some("X-Filesystem-Path"),
+            ));
         }
     };
 
@@ -150,13 +155,13 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
         let filepath = items[0].clone();
         debug!("Downloading single file: {}", filepath.display());
 
-        let file = File::open(&filepath)
-            .await
-            .map_err(|e| Error::filesystem_error(
+        let file = File::open(&filepath).await.map_err(|e| {
+            Error::filesystem_error(
                 format!("Failed to open file for download: {}", filepath.display()),
                 Some(e),
-                Some(filepath.clone())
-            ))?;
+                Some(filepath.clone()),
+            )
+        })?;
         let stream = ReaderStream::new(file);
 
         return Ok(HttpResponse::Ok()
@@ -684,21 +689,21 @@ async fn new_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl
         .unwrap_or(false);
 
     if is_directory {
-        fs::create_dir_all(&file_path)
-            .await
-            .map_err(|e| Error::filesystem_error(
+        fs::create_dir_all(&file_path).await.map_err(|e| {
+            Error::filesystem_error(
                 format!("Failed to create directory: {}", file_path.display()),
                 Some(e),
-                Some(file_path.clone())
-            ))?;
+                Some(file_path.clone()),
+            )
+        })?;
     } else {
-        File::create(&file_path)
-            .await
-            .map_err(|e| Error::filesystem_error(
+        File::create(&file_path).await.map_err(|e| {
+            Error::filesystem_error(
                 format!("Failed to create file: {}", file_path.display()),
                 Some(e),
-                Some(file_path.clone())
-            ))?;
+                Some(file_path.clone()),
+            )
+        })?;
     }
 
     Ok(HttpResponse::Ok().finish())
@@ -706,11 +711,13 @@ async fn new_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl
 
 #[get("/indexer/stats")]
 async fn get_indexer_stats() -> Result<impl Responder> {
-    let (count, total_size, avg_size) = IndexerData::get_stats().await
-        .map_err(|e| {
-            error!("Error getting indexer stats: {}", e);
-            Error::database_error(format!("Failed to get indexer statistics: {}", e), Some(anyhow::anyhow!(e)))
-        })?;
+    let (count, total_size, avg_size) = IndexerData::get_stats().await.map_err(|e| {
+        error!("Error getting indexer stats: {}", e);
+        Error::database_error(
+            format!("Failed to get indexer statistics: {}", e),
+            Some(anyhow::anyhow!(e)),
+        )
+    })?;
 
     Ok(HttpResponse::Ok().json(json!({
         "status": "success",
@@ -739,7 +746,9 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
     let cwd = body
         .get("cwd")
         .and_then(|cwd| cwd.as_str())
-        .ok_or_else(|| Error::validation_error("Current working directory is required", Some("cwd")))?
+        .ok_or_else(|| {
+            Error::validation_error("Current working directory is required", Some("cwd"))
+        })?
         .to_os_path();
     let archive_file_name = body
         .get("filename")
@@ -767,13 +776,20 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
         }
 
         // Run the archive operation with the cancellation flag
-        archive_wrapper::archive(archive_path.clone(), absolute_file_paths, tracker, &cancel_flag)
-            .await
-            .map_err(|e| Error::filesystem_error(
+        archive_wrapper::archive(
+            archive_path.clone(),
+            absolute_file_paths,
+            tracker,
+            &cancel_flag,
+        )
+        .await
+        .map_err(|e| {
+            Error::filesystem_error(
                 format!("Failed to create archive: {}", archive_path.display()),
                 None,
-                Some(archive_path.clone())
-            ))?;
+                Some(archive_path.clone()),
+            )
+        })?;
 
         // Clean up the cancellation flag
         {
@@ -820,7 +836,10 @@ async fn cancel_archive(tracker_id: web::Path<String>) -> Result<impl Responder>
         })))
     } else {
         // If the tracker doesn't exist, it might have already completed or never existed
-        warn!("Attempted to cancel non-existent archive operation with ID {}", tracker_id);
+        warn!(
+            "Attempted to cancel non-existent archive operation with ID {}",
+            tracker_id
+        );
 
         Ok(HttpResponse::NotFound().json(json!({
             "status": "error",
@@ -847,7 +866,10 @@ async fn cancel_upload(upload_id: web::Path<String>) -> Result<impl Responder> {
         })))
     } else {
         // If the tracker doesn't exist, it might have already completed or never existed
-        warn!("Attempted to cancel non-existent upload operation with ID {}", upload_id);
+        warn!(
+            "Attempted to cancel non-existent upload operation with ID {}",
+            upload_id
+        );
 
         Ok(HttpResponse::NotFound().json(json!({
             "status": "error",
@@ -879,21 +901,24 @@ fn format_size(size: u64) -> String {
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/filesystem")
-            .wrap(Authentication::new())
             .service(get_filesystem_entries)
-            .service(archive_paths)
-            .service(get_archive_status)
-            .service(cancel_archive)
-            .service(download)
-            .service(search)
-            .service(upload)
-            .service(upload_progress)
-            .service(cancel_upload)
-            .service(copy_filesystem_entry)
-            .service(move_filesystem_entry)
-            .service(rename_filesystem_entry)
-            .service(delete_filesystem_entry)
-            .service(new_filesystem_entry)
-            .service(get_indexer_stats),
+            .service(
+                web::scope("")
+                    .wrap(Authentication::new())
+                    .service(archive_paths)
+                    .service(get_archive_status)
+                    .service(cancel_archive)
+                    .service(download)
+                    .service(search)
+                    .service(upload)
+                    .service(upload_progress)
+                    .service(cancel_upload)
+                    .service(copy_filesystem_entry)
+                    .service(move_filesystem_entry)
+                    .service(rename_filesystem_entry)
+                    .service(delete_filesystem_entry)
+                    .service(new_filesystem_entry)
+                    .service(get_indexer_stats),
+            ),
     );
 }
