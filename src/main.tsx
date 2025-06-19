@@ -40,10 +40,10 @@ ReactDOM.createRoot($("#root")[0]!).render(
 export function MainContentRenderer()
 {
     const navigate = useNavigate();
-    const [firstSetup, setFirstSetup] = React.useState<boolean>(false);
+    const [firstSetupState, setFirstSetupState] = React.useState(0);
     useEffect(() =>
     {
-        hasCompletedFirstSetup().then(setFirstSetup);
+        hasCompletedFirstSetup().then(complete => setFirstSetupState(complete ? 1 : 2));
     }, []);
     return (
         <HeroUIProvider navigate={navigate}>
@@ -57,11 +57,11 @@ export function MainContentRenderer()
             <Navigation/>
             <Routes>
                 <Route>
-                    {!firstSetup ? (<Route path={"*"} element={<SetupProvider><SetupPage/></SetupProvider>}/>) : (<>
+                    {firstSetupState == 2 ? (<Route path={"*"} element={<SetupProvider><SetupPage/></SetupProvider>}/>) : firstSetupState == 1 ? (<>
                         <Route path="" element={<LoginPage/>}/>
                         <Route path={"files/*"} element={<FilesPage/>}/>
                         <Route path={"*"} element={<ErrorPage/>}/>
-                    </>)}
+                    </>) : null}
                 </Route>
             </Routes>
         </HeroUIProvider>
