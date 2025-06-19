@@ -1,7 +1,7 @@
 use crate::DEBUG;
 use actix_files::file_extension_to_mime;
 use actix_web::error::ErrorInternalServerError;
-use actix_web::{App, Error, HttpRequest, HttpResponse, Responder, get, web};
+use actix_web::{App, Error, HttpRequest, HttpResponse, Responder, get, web, Scope};
 use include_dir::{Dir, include_dir};
 use vite_actix::vite_app_factory::ViteAppFactory;
 
@@ -50,6 +50,25 @@ pub trait AssetsAppConfig {
 }
 
 impl<T> AssetsAppConfig for App<T>
+where
+    T: actix_web::dev::ServiceFactory<
+            actix_web::dev::ServiceRequest,
+            Config = (),
+            Error = Error,
+            InitError = (),
+        >,
+{
+    fn configure_frontend_routes(self) -> Self {
+        if !DEBUG {
+            self.default_service(web::route().to(index))
+                .service(web::scope("/assets/{file:.*}").service(assets))
+        } else {
+            self.configure_vite()
+        }
+    }
+}
+
+impl<T> AssetsAppConfig for Scope<T>
 where
     T: actix_web::dev::ServiceFactory<
             actix_web::dev::ServiceRequest,

@@ -1,11 +1,14 @@
 use crate::arguments::FilerArguments;
 use crate::auth::{auth_db, auth_endpoint};
 use crate::configuration::configuration_data::Configuration;
+use crate::configuration::configuration_endpoint;
+use crate::configuration::upnp;
 use crate::helpers::asset_endpoint::AssetsAppConfig;
 use crate::helpers::constants::DEBUG;
+use crate::internal_configuration::{ic_db, ic_endpoint};
 use crate::io::fs::indexer::indexer_data::IndexerData;
 use crate::io::fs::indexer::{indexer_data, indexer_db};
-use actix_web::{App, HttpResponse, HttpServer, middleware, web};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use anyhow::Result;
 use clap::Parser;
 use io::fs::filesystem_endpoint;
@@ -13,18 +16,17 @@ use log::Level::Info;
 use log::*;
 use serde_json::json;
 use std::env::set_current_dir;
+use actix_web::test::default_service;
 use tokio::fs;
 use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
-use crate::configuration::configuration_endpoint;
-use crate::internal_configuration::{ic_db, ic_endpoint};
 
 mod arguments;
 mod auth;
 mod configuration;
 pub(crate) mod helpers;
-pub mod io;
 mod internal_configuration;
+pub mod io;
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder()
@@ -69,6 +71,11 @@ pub async fn run() -> Result<()> {
 
     let port = args.port.unwrap_or(config.port);
 
+    // Initialize UPnP functionality with the actual port being used
+    if config.upnp_enabled {
+        upnp::update_port_forwarding(port);
+    }
+
     auth_db::initialize().await?;
     ic_db::initialize().await?;
 
@@ -92,32 +99,35 @@ pub async fn run() -> Result<()> {
         }
     }
     let server = HttpServer::new(move || {
-        App::new()
-            .wrap(middleware::Logger::default())
-            .app_data(
-                web::JsonConfig::default()
-                    .limit(4096)
-                    .error_handler(|err, _req| {
-                        let error = json!({ "error": format!("{}", err) });
-                        actix_web::error::InternalError::from_response(
-                            err,
-                            HttpResponse::BadRequest().json(error),
-                        )
-                        .into()
-                    }),
-            )
-            .service(
-                web::scope("/api")
-                    .configure(auth_endpoint::configure)
-                    .configure(filesystem_endpoint::configure)
-                    .configure(configuration_endpoint::configure)
-                    .configure(ic_endpoint::configure)
-                    // Handle unmatched API endpoints
-                    .default_service(web::to(|| async {
-                        HttpResponse::NotFound().json(json!({"error": "API endpoint not found"}))
-                    })),
-            )
-            .configure_frontend_routes()
+        App::new().service(
+            web::scope(config.http_root_path.as_str())
+                .wrap(middleware::Logger::default())
+                .app_data(
+                    web::JsonConfig::default()
+                        .limit(4096)
+                        .error_handler(|err, _req| {
+                            let error = json!({ "error": format!("{}", err) });
+                            actix_web::error::InternalError::from_response(
+                                err,
+                                HttpResponse::BadRequest().json(error),
+                            )
+                            .into()
+                        }),
+                )
+                .service(
+                    web::scope("/api")
+                        .configure(auth_endpoint::configure)
+                        .configure(filesystem_endpoint::configure)
+                        .configure(configuration_endpoint::configure)
+                        .configure(ic_endpoint::configure)
+                        // Handle unmatched API endpoints
+                        .default_service(web::to(|| async {
+                            HttpResponse::NotFound()
+                                .json(json!({"error": "API endpoint not found"}))
+                        })),
+                )
+                .configure_frontend_routes()
+        )
     })
     .workers(4)
     .bind(format!("0.0.0.0:{}", port))?
@@ -131,6 +141,9 @@ pub async fn run() -> Result<()> {
 
     let stop_result = server.await;
     debug!("Server stopped");
+
+    // Clean up UPnP port forwarding
+    upnp::cleanup();
 
     Ok(stop_result?)
 }

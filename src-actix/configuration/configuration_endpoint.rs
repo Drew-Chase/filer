@@ -1,4 +1,5 @@
 use crate::configuration::configuration_data::Configuration;
+use crate::configuration::upnp;
 use crate::helpers::http_error::Result;
 use actix_web::{HttpResponse, get, post, web};
 use actix_web::{Responder, delete};
@@ -17,7 +18,15 @@ pub async fn get_config(query: web::Query<HashMap<String, String>>) -> Result<im
 
 #[post("/")]
 pub async fn update_config(body: web::Json<Configuration>) -> Result<impl Responder> {
+    // Store the old configuration for comparison
+    let old_config = Configuration::get().clone();
+
+    // Save the new configuration
     body.0.save()?;
+
+    // Handle UPnP port forwarding based on configuration changes
+    upnp::handle_config_change(&old_config, &body.0);
+
     Ok(HttpResponse::Ok().finish())
 }
 
