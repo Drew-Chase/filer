@@ -1,6 +1,6 @@
 import {m} from "framer-motion";
 import {useSetup} from "../../../providers/SetupProvider.tsx";
-import {Button, Chip, Input, Link, NumberInput, Radio, RadioGroup, Select, SelectItem, Switch, Textarea} from "@heroui/react";
+import {Button, Chip, Input, Link, Radio, RadioGroup, Select, SelectItem, Switch, Textarea} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";
 import SelectDirectoryEntryModal from "../../modals/SelectDirectoryEntryModal.tsx";
@@ -12,11 +12,8 @@ interface StorageSettings
     file_watcher_enabled: boolean;
     filter_mode_whitelist: boolean;
     filter: string[];
-    max_file_size: number;
     included_extensions: string[];
     exclude_hidden_files: boolean;
-    enable_thumbnails: boolean;
-    max_cache_size: number;
 }
 
 interface CreateStorageConfigRequest
@@ -27,17 +24,12 @@ interface CreateStorageConfigRequest
     file_watcher_enabled: boolean;
     filter_mode_whitelist: boolean;
     filter: string[];
-    max_file_size: number;
     included_extensions: string[];
     exclude_hidden_files: boolean;
-    enable_thumbnails: boolean;
-    max_cache_size: number;
     // Network configuration fields
     http_root_path: string;
     upnp_enabled: boolean;
     authorized_hosts: string[];
-    max_connections: number;
-    enable_ssl: boolean;
     cors_enabled: boolean;
 }
 
@@ -73,11 +65,8 @@ export default function StorageStep()
             "**/Temp/**",
             "**/tmp/**"
         ],
-        max_file_size: 1000,
         included_extensions: [".txt", ".pdf", ".doc", ".docx", ".jpg", ".png", ".mp4", ".mp3"],
         exclude_hidden_files: true,
-        enable_thumbnails: true,
-        max_cache_size: 500
     });
 
     const [filterInput, setFilterInput] = useState("");
@@ -114,11 +103,8 @@ export default function StorageStep()
                     file_watcher_enabled: config.file_watcher_enabled ?? true,
                     filter_mode_whitelist: config.filter_mode_whitelist ?? false,
                     filter: config.filter ?? [],
-                    max_file_size: config.max_file_size ?? 1000,
                     included_extensions: config.included_extensions ?? [],
                     exclude_hidden_files: config.exclude_hidden_files ?? true,
-                    enable_thumbnails: config.enable_thumbnails ?? true,
-                    max_cache_size: config.max_cache_size ?? 500
                 });
             } catch (error)
             {
@@ -131,7 +117,7 @@ export default function StorageStep()
             }
         };
 
-        loadCurrentConfig();
+        loadCurrentConfig().then();
     }, []);
 
     const handleAddFilter = () =>
@@ -218,11 +204,8 @@ export default function StorageStep()
                 file_watcher_enabled: storageSettings.file_watcher_enabled,
                 filter_mode_whitelist: storageSettings.filter_mode_whitelist,
                 filter: storageSettings.filter,
-                max_file_size: storageSettings.max_file_size,
                 included_extensions: storageSettings.included_extensions,
                 exclude_hidden_files: storageSettings.exclude_hidden_files,
-                enable_thumbnails: storageSettings.enable_thumbnails,
-                max_cache_size: storageSettings.max_cache_size
             });
 
             setApiSuccess("Storage configuration saved successfully!");
@@ -413,48 +396,6 @@ export default function StorageStep()
                                 <Switch
                                     isSelected={storageSettings.exclude_hidden_files}
                                     onValueChange={(value) => setStorageSettings(prev => ({...prev, exclude_hidden_files: value}))}
-                                />
-                            </div>
-
-                            <div className={"flex items-center justify-between"}>
-                                <div className={"flex flex-col cursor-pointer"} onClick={() => setStorageSettings(prev => ({...prev, enable_thumbnails: !prev.enable_thumbnails}))}>
-                                    <span className={"font-medium"}>Enable Thumbnails</span>
-                                    <span className={"text-sm text-default-500"}>Generate thumbnails for images and videos</span>
-                                </div>
-                                <Switch
-                                    isSelected={storageSettings.enable_thumbnails}
-                                    onValueChange={(value) => setStorageSettings(prev => ({...prev, enable_thumbnails: value}))}
-                                />
-                            </div>
-                        </m.div>
-
-                        {/* Size Limits */}
-                        <m.div
-                            className={"space-y-4"}
-                            initial={{opacity: 0, y: 20}}
-                            animate={{opacity: 1, y: 0}}
-                            transition={{delay: 0.4}}
-                        >
-                            <div className={"grid grid-cols-2 gap-4"}>
-                                <NumberInput
-                                    label="Max File Size (MB)"
-                                    placeholder="1000"
-                                    value={storageSettings.max_file_size}
-                                    onValueChange={(value) => setStorageSettings(prev => ({...prev, max_file_size: value}))}
-                                    startContent={<Icon icon={"mdi:file-document-outline"} className={"text-default-400"}/>}
-                                    description="Maximum file size to index"
-                                    variant="bordered"
-                                    min={1}
-                                />
-                                <NumberInput
-                                    label="Max Cache Size (MB)"
-                                    placeholder="500"
-                                    value={storageSettings.max_cache_size}
-                                    onValueChange={(value) => setStorageSettings(prev => ({...prev, max_cache_size: value}))}
-                                    startContent={<Icon icon={"mdi:cached"} className={"text-default-400"}/>}
-                                    description="Maximum cache size for thumbnails"
-                                    variant="bordered"
-                                    min={1}
                                 />
                             </div>
                         </m.div>

@@ -14,17 +14,14 @@ pub struct Configuration {
     pub file_watcher_enabled: bool,
     pub filter_mode_whitelist: bool,
     pub filter: Vec<String>,
-    pub max_file_size: u64,
     pub included_extensions: Vec<String>,
     pub exclude_hidden_files: bool,
-    pub enable_thumbnails: bool,
-    pub max_cache_size: u64,
     // Network configuration
     pub http_root_path: String,
     pub upnp_enabled: bool,
+    /// A list of authorized hosts for the server, allowing access from these hosts only.
+    /// By default, it includes localhost, 127.0.0.1 and the server's own IP address.
     pub authorized_hosts: Vec<String>,
-    pub max_connections: u32,
-    pub enable_ssl: bool,
     pub cors_enabled: bool,
 }
 
@@ -33,14 +30,17 @@ impl Configuration {
         if let Some(config) = CONFIGURATION.get() {
             config
         } else {
-            CONFIGURATION.set(Self::default())
+            CONFIGURATION
+                .set(Self::default())
                 .expect("Failed to set default configuration in OnceLock");
-            CONFIGURATION.get()
+            CONFIGURATION
+                .get()
                 .expect("Failed to get configuration from OnceLock after setting default")
         }
     }
     pub fn get_path() -> &'static Option<String> {
-        CONFIGURATION_PATH.get()
+        CONFIGURATION_PATH
+            .get()
             .expect("Configuration path OnceLock not initialized")
     }
     pub fn set_path(path: impl AsRef<Path>) -> anyhow::Result<()> {
@@ -90,7 +90,7 @@ impl Configuration {
 
 impl Default for Configuration {
     fn default() -> Self {
-        // Get current executable path, falling back to empty string if it fails
+        // Get the current executable path, falling back to empty string if it fails
         let current_exe_path = std::env::current_exe()
             .ok()
             .and_then(|path| path.parent().map(|p| p.to_string_lossy().to_string()))
@@ -100,7 +100,7 @@ impl Default for Configuration {
             });
         let current_exe_path = current_exe_path.as_str().replace('\\', "/");
 
-        // Get current working directory, falling back to empty string if it fails
+        // Get the current working directory, falling back to an empty string if it fails
         let cwd = std::env::current_dir()
             .map(|path| path.to_string_lossy().to_string())
             .unwrap_or_else(|_| {
@@ -161,7 +161,6 @@ impl Default for Configuration {
             file_watcher_enabled: false,
             filter_mode_whitelist: false,
             filter: ignored_paths,
-            max_file_size: 1000,
             included_extensions: vec![
                 ".txt".to_string(),
                 ".pdf".to_string(),
@@ -173,14 +172,14 @@ impl Default for Configuration {
                 ".mp3".to_string(),
             ],
             exclude_hidden_files: false,
-            enable_thumbnails: true,
-            max_cache_size: 500,
             // Network defaults
             http_root_path: "/".to_string(),
             upnp_enabled: false,
-            authorized_hosts: vec!["127.0.0.1".to_string(), "localhost".to_string(), server_computer_ip_address],
-            max_connections: 100,
-            enable_ssl: false,
+            authorized_hosts: vec![
+                "127.0.0.1".to_string(),
+                "localhost".to_string(),
+                server_computer_ip_address,
+            ],
             cors_enabled: true,
         }
     }

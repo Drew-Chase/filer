@@ -2,7 +2,7 @@ import {m} from "framer-motion";
 import {useSetup} from "../../../providers/SetupProvider.tsx";
 import {Button, Chip, Input, Link, NumberInput, Switch, Textarea} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
-import {useState, useEffect} from "react";
+import {useEffect, useState} from "react";
 
 interface NetworkSettings
 {
@@ -10,8 +10,6 @@ interface NetworkSettings
     http_root_path: string;
     upnp_enabled: boolean;
     authorized_hosts: string[];
-    max_connections: number;
-    enable_ssl: boolean;
     cors_enabled: boolean;
 }
 
@@ -27,13 +25,10 @@ interface CreateNetworkConfigRequest
     included_extensions: string[];
     exclude_hidden_files: boolean;
     enable_thumbnails: boolean;
-    max_cache_size: number;
     // Network configuration fields
     http_root_path: string;
     upnp_enabled: boolean;
     authorized_hosts: string[];
-    max_connections: number;
-    enable_ssl: boolean;
     cors_enabled: boolean;
 }
 
@@ -46,8 +41,6 @@ export default function NetworkStep()
         http_root_path: "/",
         upnp_enabled: false,
         authorized_hosts: ["127.0.0.1", "localhost", "::1"],
-        max_connections: 100,
-        enable_ssl: false,
         cors_enabled: true
     });
 
@@ -82,8 +75,6 @@ export default function NetworkStep()
                     http_root_path: config.http_root_path ?? "/",
                     upnp_enabled: config.upnp_enabled ?? false,
                     authorized_hosts: config.authorized_hosts ?? ["127.0.0.1", "localhost", "::1"],
-                    max_connections: config.max_connections ?? 100,
-                    enable_ssl: config.enable_ssl ?? false,
                     cors_enabled: config.cors_enabled ?? true
                 });
             } catch (error)
@@ -97,7 +88,7 @@ export default function NetworkStep()
             }
         };
 
-        loadCurrentConfig();
+        loadCurrentConfig().then();
     }, []);
 
     const handleAddHost = () =>
@@ -160,8 +151,6 @@ export default function NetworkStep()
                 http_root_path: networkSettings.http_root_path,
                 upnp_enabled: networkSettings.upnp_enabled,
                 authorized_hosts: networkSettings.authorized_hosts,
-                max_connections: networkSettings.max_connections,
-                enable_ssl: networkSettings.enable_ssl,
                 cors_enabled: networkSettings.cors_enabled
             });
 
@@ -299,27 +288,6 @@ export default function NetworkStep()
                             />
                         </m.div>
 
-                        {/* Max Connections */}
-                        <m.div
-                            className={"space-y-2"}
-                            initial={{opacity: 0, y: 20}}
-                            animate={{opacity: 1, y: 0}}
-                            transition={{delay: 0.3}}
-                        >
-                            <NumberInput
-                                label="Max Connections"
-                                placeholder="100"
-                                value={networkSettings.max_connections}
-                                onValueChange={(value) => setNetworkSettings(prev => ({...prev, max_connections: value}))}
-                                startContent={<Icon icon={"mdi:connection"} className={"text-default-400"}/>}
-                                description="Maximum number of concurrent connections"
-                                variant="bordered"
-                                min={1}
-                                max={10000}
-                                formatOptions={{useGrouping: false}}
-                            />
-                        </m.div>
-
                         {/* Network Switches */}
                         <m.div
                             className={"space-y-4 p-4 bg-white/5 rounded-lg border border-white/10"}
@@ -337,17 +305,6 @@ export default function NetworkStep()
                                 <Switch
                                     isSelected={networkSettings.upnp_enabled}
                                     onValueChange={(value) => setNetworkSettings(prev => ({...prev, upnp_enabled: value}))}
-                                />
-                            </div>
-
-                            <div className={"flex items-center justify-between"}>
-                                <div className={"flex flex-col cursor-pointer"} onClick={() => setNetworkSettings(prev => ({...prev, enable_ssl: !prev.enable_ssl}))}>
-                                    <span className={"font-medium"}>Enable SSL/TLS</span>
-                                    <span className={"text-sm text-default-500"}>Use HTTPS for secure connections</span>
-                                </div>
-                                <Switch
-                                    isSelected={networkSettings.enable_ssl}
-                                    onValueChange={(value) => setNetworkSettings(prev => ({...prev, enable_ssl: value}))}
                                 />
                             </div>
 
