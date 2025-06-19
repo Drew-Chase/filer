@@ -1,5 +1,5 @@
 use crate::auth::auth_middleware::Authentication;
-use crate::helpers::http_error::Result;
+use crate::helpers::http_error::{Error, Result};
 use crate::io::fs::archive_wrapper;
 use crate::io::fs::download_parameters::DownloadParameters;
 use crate::io::fs::filesystem_data::{FilesystemData, FilesystemEntry};
@@ -61,15 +61,11 @@ async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> 
         Some(header) => match header.to_str() {
             Ok(path_str) => path_str.to_os_path(),
             Err(_) => {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "X-Filesystem-Path header is not a valid string"
-                })));
+                return Err(Error::invalid_input("X-Filesystem-Path header is not a valid string"));
             }
         },
         None => {
-            return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "X-Filesystem-Path header is missing"
-            })));
+            return Err(Error::validation_error("X-Filesystem-Path header is missing", Some("X-Filesystem-Path")));
         }
     };
 
@@ -156,7 +152,11 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
 
         let file = File::open(&filepath)
             .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+            .map_err(|e| Error::filesystem_error(
+                format!("Failed to open file for download: {}", filepath.display()),
+                Some(e),
+                Some(filepath.clone())
+            ))?;
         let stream = ReaderStream::new(file);
 
         return Ok(HttpResponse::Ok()
@@ -676,7 +676,7 @@ async fn new_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl
         .get("path")
         .and_then(|p| p.as_str())
         .map(|i| i.to_os_path())
-        .ok_or_else(|| anyhow::anyhow!("path field is missing"))?;
+        .ok_or_else(|| Error::validation_error("path field is missing", Some("path")))?;
 
     let is_directory = body
         .get("is_directory")
@@ -684,13 +684,21 @@ async fn new_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl
         .unwrap_or(false);
 
     if is_directory {
-        fs::create_dir_all(file_path)
+        fs::create_dir_all(&file_path)
             .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+            .map_err(|e| Error::filesystem_error(
+                format!("Failed to create directory: {}", file_path.display()),
+                Some(e),
+                Some(file_path.clone())
+            ))?;
     } else {
-        File::create(file_path)
+        File::create(&file_path)
             .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+            .map_err(|e| Error::filesystem_error(
+                format!("Failed to create file: {}", file_path.display()),
+                Some(e),
+                Some(file_path.clone())
+            ))?;
     }
 
     Ok(HttpResponse::Ok().finish())
@@ -698,25 +706,22 @@ async fn new_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl
 
 #[get("/indexer/stats")]
 async fn get_indexer_stats() -> Result<impl Responder> {
-    match IndexerData::get_stats().await {
-        Ok((count, total_size, avg_size)) => Ok(HttpResponse::Ok().json(json!({
-            "status": "success",
-            "stats": {
-                "fileCount": count,
-                "totalSize": total_size,
-                "averageSize": avg_size,
-                "humanReadableTotalSize": format_size(total_size),
-                "humanReadableAverageSize": format_size(avg_size)
-            }
-        }))),
-        Err(e) => {
+    let (count, total_size, avg_size) = IndexerData::get_stats().await
+        .map_err(|e| {
             error!("Error getting indexer stats: {}", e);
-            Ok(HttpResponse::InternalServerError().json(json!({
-                "status": "error",
-                "message": format!("Failed to get indexer statistics: {}", e)
-            })))
+            Error::database_error(format!("Failed to get indexer statistics: {}", e), Some(anyhow::anyhow!(e)))
+        })?;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "status": "success",
+        "stats": {
+            "fileCount": count,
+            "totalSize": total_size,
+            "averageSize": avg_size,
+            "humanReadableTotalSize": format_size(total_size),
+            "humanReadableAverageSize": format_size(avg_size)
         }
-    }
+    })))
 }
 
 #[post("/archive")]
@@ -730,20 +735,20 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
                 .filter_map(|e| e.as_str().map(String::from))
                 .collect::<Vec<_>>()
         })
-        .ok_or_else(|| anyhow::anyhow!("Invalid entries array"))?;
+        .ok_or_else(|| Error::validation_error("Invalid entries array", Some("entries")))?;
     let cwd = body
         .get("cwd")
         .and_then(|cwd| cwd.as_str())
-        .ok_or_else(|| anyhow::anyhow!("Invalid cwd"))?
+        .ok_or_else(|| Error::validation_error("Current working directory is required", Some("cwd")))?
         .to_os_path();
     let archive_file_name = body
         .get("filename")
         .and_then(|filename| filename.as_str())
-        .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
+        .ok_or_else(|| Error::validation_error("Archive filename is required", Some("filename")))?;
     let tracker_id = body
         .get("tracker_id")
         .and_then(|filename| filename.as_str())
-        .ok_or_else(|| anyhow::anyhow!("Missing tracker id"))?;
+        .ok_or_else(|| Error::validation_error("Tracker ID is required", Some("tracker_id")))?;
     let absolute_file_paths = filenames
         .iter()
         .map(|filename| cwd.join(filename))
@@ -762,9 +767,13 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
         }
 
         // Run the archive operation with the cancellation flag
-        archive_wrapper::archive(archive_path, absolute_file_paths, tracker, &cancel_flag)
+        archive_wrapper::archive(archive_path.clone(), absolute_file_paths, tracker, &cancel_flag)
             .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+            .map_err(|e| Error::filesystem_error(
+                format!("Failed to create archive: {}", archive_path.display()),
+                None,
+                Some(archive_path.clone())
+            ))?;
 
         // Clean up the cancellation flag
         {
