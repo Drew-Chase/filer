@@ -783,7 +783,7 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
             &cancel_flag,
         )
         .await
-        .map_err(|e| {
+        .map_err(|_| {
             Error::filesystem_error(
                 format!("Failed to create archive: {}", archive_path.display()),
                 None,

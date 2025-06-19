@@ -432,9 +432,11 @@ mod tests {
 mod endpoint_tests {
     use actix_web::{test, web, App, http::header};
     use crate::io::fs::filesystem_endpoint;
+    use crate::configuration::configuration_data::Configuration;
     use tempfile::tempdir;
     use std::fs::File;
     use std::io::{Read, Write};
+    use std::path::PathBuf;
 
     // Test for get_filesystem_entries endpoint
     #[actix_web::test]
@@ -933,6 +935,66 @@ mod endpoint_tests {
         // Read the uploaded file and check its content
         let uploaded_content = std::fs::read(&upload_path).expect("Failed to read uploaded file");
         assert_eq!(uploaded_content, test_content);
+    }
+
+    // Test for root_path configuration
+    #[actix_web::test]
+    async fn test_root_path_configuration() {
+        // Create a temporary directory for testing
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let temp_path = temp_dir.path();
+
+        // Create a test file in the temporary directory
+        let test_file_path = temp_path.join("test_file.txt");
+        let test_content = b"This is test content for root_path test";
+        let mut test_file = File::create(&test_file_path).expect("Failed to create test file");
+        test_file.write_all(test_content).expect("Failed to write to test file");
+
+        // Set the root_path configuration to the temporary directory
+        let mut config = Configuration::get().clone();
+        let original_root_path = config.root_path.clone();
+        config.root_path = temp_path.to_string_lossy().to_string();
+
+        // Create a test app with a custom configuration
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(config.clone()))
+                .service(
+                    web::scope("/api")
+                        .service(
+                            web::scope("/fs")
+                                .service(filesystem_endpoint::get_filesystem_entries)
+                        )
+                )
+        ).await;
+
+        // Create a test request with path "/"
+        let req = test::TestRequest::get()
+            .uri("/api/fs/")
+            .insert_header((header::CONTENT_TYPE, "application/json"))
+            .insert_header(("X-Filesystem-Path", "/"))
+            .to_request();
+
+        // Send the request and get the response
+        let resp = test::call_and_read_body(&app, req).await;
+
+        // Parse the response body
+        let json: serde_json::Value = serde_json::from_slice(&resp).expect("Failed to parse response JSON");
+
+        // Check that the response contains the expected data
+        assert!(json.get("entries").is_some());
+        let entries = json.get("entries").unwrap().as_array().unwrap();
+
+        // Check that our test file is in the entries
+        let found_test_file = entries.iter().any(|entry| {
+            entry.get("filename").unwrap().as_str().unwrap() == "test_file.txt"
+        });
+
+        assert!(found_test_file, "Test file not found in response");
+
+        // Reset the root_path configuration to its original value
+        let mut config = Configuration::get().clone();
+        config.root_path = original_root_path;
     }
 
     // Test for move endpoint
