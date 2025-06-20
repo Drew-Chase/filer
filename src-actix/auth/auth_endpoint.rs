@@ -4,6 +4,7 @@ use crate::helpers::http_error::Result;
 use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse};
 use serde_json::json;
 
+pub(crate) static TOKEN_COOKIE_KEY: &str = "tok_Zs7FdOqOZkeIK1DfQulRJg";
 
 #[post("/users")]
 async fn create_user(user_data: web::Json<CreateUserRequest>) -> Result<HttpResponse> {
@@ -129,7 +130,7 @@ async fn login(req: HttpRequest, login_data: web::Json<LoginRequest>) -> Result<
         if remember {
             // 30 days for "remember me"
             response.cookie(
-                actix_web::cookie::Cookie::build("token", token.clone())
+                actix_web::cookie::Cookie::build(TOKEN_COOKIE_KEY, token.clone())
                     .path("/")
                     .max_age(actix_web::cookie::time::Duration::days(365))
                     .http_only(true)
@@ -140,7 +141,7 @@ async fn login(req: HttpRequest, login_data: web::Json<LoginRequest>) -> Result<
         } else {
             // Session cookie (expires when the browser closes)
             response.cookie(
-                actix_web::cookie::Cookie::build("token", token.clone())
+                actix_web::cookie::Cookie::build(TOKEN_COOKIE_KEY, token.clone())
                     .path("/")
                     .http_only(true)
                     .secure(false)
@@ -163,7 +164,7 @@ async fn login(req: HttpRequest, login_data: web::Json<LoginRequest>) -> Result<
 #[get("/validate-token")]
 async fn validate_token(req: HttpRequest) -> Result<HttpResponse> {
     // Try to get the token from cookies
-    if let Some(token_cookie) = req.cookie("token") {
+    if let Some(token_cookie) = req.cookie(TOKEN_COOKIE_KEY) {
         let token = token_cookie.value().to_string();
         let ip = req
             .connection_info()
@@ -198,7 +199,7 @@ async fn logout() -> HttpResponse {
 
     // Remove the token cookie by setting an expired cookie
     response.cookie(
-        actix_web::cookie::Cookie::build("token", "")
+        actix_web::cookie::Cookie::build(TOKEN_COOKIE_KEY, "")
             .path("/")
             .max_age(actix_web::cookie::time::Duration::seconds(-1))
             .http_only(true)

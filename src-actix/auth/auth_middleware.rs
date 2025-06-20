@@ -5,6 +5,7 @@ use actix_web::error::ErrorUnauthorized;
 use actix_web::Error;
 use futures::future::{ready, LocalBoxFuture, Ready};
 use std::rc::Rc;
+use crate::auth::auth_endpoint::TOKEN_COOKIE_KEY;
 
 pub struct Authentication;
 
@@ -81,7 +82,7 @@ where
                 }
             }
 
-            if let Some(token_cookie) = &req.cookie("token") {
+            if let Some(token_cookie) = &req.cookie(TOKEN_COOKIE_KEY) {
                 let token = token_cookie.value().to_string();
                 let ip = connection_info.peer_addr().unwrap_or("unknown");
                 let host = connection_info.host().to_string();
