@@ -4,31 +4,31 @@ This document outlines the implementation status of various configuration option
 
 ## Storage Configuration
 - [x] Root Path (Implemented Correctly)
-- [ ] Indexing Enabled (Implemented Flawed)
-   - Default is false in backend but true in frontend
+- [x] Indexing Enabled (Implemented Correctly)
+   - Default values aligned between frontend and backend
    - Functionality is implemented correctly in the backend
-- [ ] File Watcher Enabled (Implemented Flawed)
-   - Default is false in backend but true in frontend
+- [x] File Watcher Enabled (Implemented Correctly)
+   - Default values aligned between frontend and backend
    - Functionality is implemented correctly in the backend
 - [x] Filter Mode Whitelist (Implemented Correctly)
 - [x] Filter Patterns (Implemented Correctly)
 - [x] Included Extensions (Implemented Correctly)
-- [ ] Exclude Hidden Files (Implemented Flawed)
-   - Default is false in backend but true in frontend
-   - Not actually used in file filtering logic despite being in the configuration
+- [x] Exclude Hidden Files (Implemented Correctly)
+   - Default values aligned between frontend and backend
+   - Now properly used in file filtering logic
 
 ## Network Configuration
 - [x] Port (Implemented Correctly)
 - [x] HTTP Root Path (Implemented Correctly)
-- [ ] UPnP Enabled (Implemented Flawed)
-   - Port forwarding is saved to config but fails silently with only error logs
-   - No user feedback when port forwarding fails
-- [ ] Authorized Hosts (Implemented Flawed)
-   - Configuration is saved but not actually used to restrict access
-   - No IP filtering middleware is applied to the Actix web server
-- [ ] CORS Enabled (Implemented Flawed)
-   - Configuration is saved but not actually used in the server
-   - No CORS middleware is applied to the Actix web server
+- [x] UPnP Enabled (Implemented Correctly)
+   - Port forwarding now provides proper error feedback to the frontend
+   - UPnP errors are properly handled and reported
+- [x] Authorized Hosts (Implemented Correctly)
+   - IP filtering middleware now restricts access based on the authorized hosts list
+   - Unauthorized requests receive a 403 Forbidden response with a clear error message
+- [x] CORS Enabled (Implemented Correctly)
+   - CORS headers are now properly applied based on the configuration
+   - Cross-origin requests are handled according to the CORS configuration
 
 ## Account Configuration
 - [x] Default Admin User (Implemented Correctly)
@@ -36,17 +36,17 @@ This document outlines the implementation status of various configuration option
 - [x] User Permissions (Implemented Correctly)
 
 ## Missing Configuration Options
-- [ ] Max File Size (Referenced in CreateStorageConfigRequest but not in Configuration struct)
-- [ ] Enable Thumbnails (Referenced in CreateStorageConfigRequest but not in Configuration struct)
+- [x] Max File Size (Removed from frontend code, not needed in Configuration struct)
+- [x] Enable Thumbnails (Removed from frontend code, not needed in Configuration struct)
 
 ## Implementation Issues
-1. **Default Value Mismatches**: Several configuration options have different default values between frontend and backend:
-   - `indexing_enabled`: false in backend, true in frontend
-   - `file_watcher_enabled`: false in backend, true in frontend
-   - `exclude_hidden_files`: false in backend, true in frontend
+1. **Default Value Mismatches**: ✓ Fixed - Default values are now aligned between frontend and backend:
+   - `indexing_enabled`: true in both backend and frontend
+   - `file_watcher_enabled`: true in both backend and frontend
+   - `exclude_hidden_files`: true in both backend and frontend
 
-2. **Inconsistent Configuration Requests**: The frontend components reference fields that don't exist in the backend Configuration struct:
-   - `max_file_size` in StorageStep.tsx
-   - `enable_thumbnails` in StorageStep.tsx
+2. **Inconsistent Configuration Requests**: ✓ Fixed - The referenced fields have been removed from the frontend code:
+   - `max_file_size` - No longer referenced in StorageStep.tsx
+   - `enable_thumbnails` - No longer referenced in StorageStep.tsx
 
 3. **Error Handling**: The frontend properly handles API errors, but there's no validation of configuration values before sending to the backend.
