@@ -20,19 +20,23 @@ struct UPnPState {
 }
 
 /// Initialize UPnP functionality based on the current configuration
-pub fn initialize() {
+/// Returns a Result with Ok(()) if successful, or an error message if it fails
+pub fn initialize() -> Result<(), String> {
     let config = Configuration::get();
 
     if config.upnp_enabled {
-        update_port_forwarding(config.port);
+        update_port_forwarding(config.port)?;
     }
+
+    Ok(())
 }
 
 /// Update port forwarding when configuration changes
-pub fn handle_config_change(old_config: &Configuration, new_config: &Configuration) {
+/// Returns a Result with Ok(()) if successful, or an error message if it fails
+pub fn handle_config_change(old_config: &Configuration, new_config: &Configuration) -> Result<(), String> {
     // If UPnP was disabled and is now enabled, start forwarding
     if !old_config.upnp_enabled && new_config.upnp_enabled {
-        update_port_forwarding(new_config.port);
+        update_port_forwarding(new_config.port)?;
     }
     // If UPnP was enabled and is now disabled, stop forwarding
     else if old_config.upnp_enabled && !new_config.upnp_enabled {
@@ -40,12 +44,15 @@ pub fn handle_config_change(old_config: &Configuration, new_config: &Configurati
     }
     // If UPnP is enabled and the port changed, update forwarding
     else if new_config.upnp_enabled && old_config.port != new_config.port {
-        update_port_forwarding(new_config.port);
+        update_port_forwarding(new_config.port)?;
     }
+
+    Ok(())
 }
 
 /// Forward the specified port using UPnP
-pub fn update_port_forwarding(port: u16) {
+/// Returns a Result with Ok(()) if successful, or an error message if it fails
+pub fn update_port_forwarding(port: u16) -> Result<(), String> {
     // Remove any existing port forwarding first
     remove_port_forwarding();
 
@@ -56,13 +63,15 @@ pub fn update_port_forwarding(port: u16) {
         Some(ip) => match Ipv4Addr::from_str(&ip) {
             Ok(addr) => addr,
             Err(e) => {
-                error!("Failed to parse local IP address {}: {}", ip, e);
-                return;
+                let err_msg = format!("Failed to parse local IP address {}: {}", ip, e);
+                error!("{}", err_msg);
+                return Err(err_msg);
             }
         },
         None => {
-            error!("Failed to get local IP address");
-            return;
+            let err_msg = "Failed to get local IP address".to_string();
+            error!("{}", err_msg);
+            return Err(err_msg);
         }
     };
 
@@ -89,14 +98,19 @@ pub fn update_port_forwarding(port: u16) {
                         port,
                         is_forwarded: true,
                     });
+                    Ok(())
                 }
                 Err(e) => {
-                    error!("Failed to forward port {}: {}", port, e);
+                    let err_msg = format!("Failed to forward port {}: {}", port, e);
+                    error!("{}", err_msg);
+                    Err(err_msg)
                 }
             }
         }
         Err(e) => {
-            error!("Failed to discover UPnP gateway: {}", e);
+            let err_msg = format!("Failed to discover UPnP gateway: {}", e);
+            error!("{}", err_msg);
+            Err(err_msg)
         }
     }
 }
