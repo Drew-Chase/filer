@@ -21,10 +21,8 @@ interface CreateNetworkConfigRequest
     file_watcher_enabled: boolean;
     filter_mode_whitelist: boolean;
     filter: string[];
-    max_file_size: number;
     included_extensions: string[];
     exclude_hidden_files: boolean;
-    enable_thumbnails: boolean;
     // Network configuration fields
     http_root_path: string;
     upnp_enabled: boolean;
