@@ -57,6 +57,7 @@ pub async fn run() -> Result<()> {
                     error!(
                         "The vite server has crashed 5 times in a row. Vite will not be restarted."
                     );
+                    std::process::exit(1);
                 }
                 std::thread::sleep(std::time::Duration::from_secs(5));
             }
@@ -100,7 +101,7 @@ pub async fn run() -> Result<()> {
     }
     let server = HttpServer::new(move || {
         App::new().service(
-            web::scope(config.http_root_path.as_str())
+            web::scope(config.http_root_path.as_str().trim_matches('/'))
                 .wrap(middleware::Logger::default())
                 .app_data(
                     web::JsonConfig::default()
