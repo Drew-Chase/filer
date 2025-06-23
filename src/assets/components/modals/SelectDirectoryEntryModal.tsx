@@ -1,4 +1,4 @@
-import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Button, cn, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {useCallback, useEffect, useState} from "react";
 import {Icon} from "@iconify-icon/react";
 import {FileSystem, FilesystemData} from "../../ts/filesystem.ts";
@@ -47,7 +47,7 @@ export default function SelectDirectoryEntryModal(props: SelectDirectoryEntryPro
                         <ModalFooter>
                             {selectedPath === null ?
                                 <Button color={"secondary"} isDisabled>Select Directory</Button> :
-                                <Button onPress={process} color={"secondary"}>Select {props.label ?? "Directory"} {selectedPath.replace(/\\/g, "/").split("/").pop()}</Button>
+                                <Button onPress={process} color={"secondary"}>Select {selectedPath.replace(/\\/g, "/").split("/").pop()}</Button>
                             }
                             <Button onPress={onClose} variant={"light"} color={"danger"}>Cancel</Button>
                         </ModalFooter>
@@ -86,6 +86,11 @@ function FileTable(props: FileTableProperties)
             });
     }, [currentPath]);
 
+    useEffect(() =>
+    {
+        console.log("Selected item changed:", props.selectedItem);
+    }, [props.selectedItem]);
+
     return (
         <>
             <FileTableBreadcrumbs paths={currentPath.replace(/\\/g, "/").split("/")} onNavigate={setCurrentPath}/>
@@ -97,8 +102,10 @@ function FileTable(props: FileTableProperties)
                 className={"w-full"}
                 classNames={{
                     base: "w-full max-h-[calc(100dvh_-_180px)] overflow-y-auto",
-                    th: "!bg-white/10 backdrop-contrast-105 backdrop-brightness-75 backdrop-blur-lg",
-                    td: "group-aria-[selected=false]/tr:group-data-[hover=true]/tr:before:bg-white/10 before:bg-white/10 before:transition-all before:duration-200"
+                    td: "group-aria-[selected=false]/tr:group-data-[hover=true]/tr:before:bg-white/10 before:bg-white/10 before:transition-all before:duration-200",
+                    tr: cn(
+                        "data-[selected=true]:!bg-blue-500/10 data-[selected=true]:data-[hover=true]:!bg-blue-500/20 duration-200 transition-all"
+                    )
                 }}
                 selectionMode={"single"}
                 selectedKeys={new Set(props.selectedItem ? [props.selectedItem] : [])}
@@ -108,11 +115,8 @@ function FileTable(props: FileTableProperties)
                     const selectedKeys = new Set(Array.from(keys).map(key =>
                     {
                         // Find the entry with this key (index)
-                        const index = parseInt(key.toString());
-                        const path = data.entries[index]?.path;
-                        if (isNaN(index) || path === undefined) return null;
-
-                        return data.entries[index] ?? null;
+                        const path = key.toString();
+                        return data.entries.find(i => i.path === path) ?? null;
                     }).filter(path => path != null));
 
                     props.onSelectionChange(selectedKeys.size === 1 ? selectedKeys.values().next().value?.path ?? null : null);
@@ -122,8 +126,8 @@ function FileTable(props: FileTableProperties)
                     <TableColumn key={"filename"} className="w-full" allowsSorting aria-label="Name column">Name</TableColumn>
                 </TableHeader>
                 <TableBody isLoading={isLoading} loadingContent={<Spinner color={"primary"}/>}>
-                    {data.entries.map((entry, index) => (
-                        <TableRow key={index} aria-label={`File entry: ${entry.filename}`}>
+                    {data.entries.map((entry) => (
+                        <TableRow key={entry.path} aria-label={`File entry: ${entry.filename}`}>
                             <TableCell className="font-medium" aria-label="File name" onDoubleClick={() =>
                             {
                                 if (entry.is_dir)
