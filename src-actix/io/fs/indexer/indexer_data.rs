@@ -69,8 +69,15 @@ pub async fn index_all_files() -> Result<()> {
                     pattern.matches(&path_str)
                 });
 
-                if (!is_ignored_path_whitelist && matches_pattern)
-                    || (is_ignored_path_whitelist && !matches_pattern)
+                // Check if the file is hidden and should be excluded
+                let is_hidden = path.file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| name.starts_with("."))
+                    .unwrap_or(false);
+
+                if ((!is_ignored_path_whitelist && matches_pattern)
+                    || (is_ignored_path_whitelist && !matches_pattern))
+                    || (config.exclude_hidden_files && is_hidden)
                 {
                     continue;
                 }
@@ -233,8 +240,16 @@ async fn process_file_event(event: Result<Event, notify::Error>) -> Result<()> {
                     let pattern = glob::Pattern::new(ignored).unwrap_or_default();
                     pattern.matches(&path_str)
                 });
-                if (!is_ignored_path_whitelist && matches_pattern)
-                    || (is_ignored_path_whitelist && !matches_pattern)
+
+                // Check if the file is hidden and should be excluded
+                let is_hidden = path.file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| name.starts_with("."))
+                    .unwrap_or(false);
+
+                if ((!is_ignored_path_whitelist && matches_pattern)
+                    || (is_ignored_path_whitelist && !matches_pattern))
+                    || (config.exclude_hidden_files && is_hidden)
                 {
                     continue;
                 }
@@ -266,8 +281,16 @@ async fn process_file_event(event: Result<Event, notify::Error>) -> Result<()> {
                     let pattern = glob::Pattern::new(ignored).unwrap_or_default();
                     pattern.matches(&path_str)
                 });
-                if (!is_ignored_path_whitelist && matches_pattern)
-                    || (is_ignored_path_whitelist && !matches_pattern)
+
+                // Check if the file is hidden and should be excluded
+                let is_hidden = path.file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| name.starts_with("."))
+                    .unwrap_or(false);
+
+                if ((!is_ignored_path_whitelist && matches_pattern)
+                    || (is_ignored_path_whitelist && !matches_pattern))
+                    || (config.exclude_hidden_files && is_hidden)
                 {
                     continue;
                 }
