@@ -34,6 +34,7 @@ export default function FileTableBreadcrumbs(props: FileTableBreadcrumbsProperti
                             if (index >= paths.length)
                                 return;
                             let newPath = paths.slice(0, index + 1).join("/");
+                            if (!newPath.endsWith("/")) newPath += "/";
                             if (onNavigate) onNavigate(newPath);
                             else navigate(newPath);
                         }}
