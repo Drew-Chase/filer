@@ -157,8 +157,8 @@ impl Default for Configuration {
         Self {
             port: 7667,
             root_path: "/".to_string(),
-            indexing_enabled: false,
-            file_watcher_enabled: false,
+            indexing_enabled: true,
+            file_watcher_enabled: true,
             filter_mode_whitelist: false,
             filter: ignored_paths,
             included_extensions: vec![
@@ -171,7 +171,7 @@ impl Default for Configuration {
                 ".mp4".to_string(),
                 ".mp3".to_string(),
             ],
-            exclude_hidden_files: false,
+            exclude_hidden_files: true,
             // Network defaults
             http_root_path: "/".to_string(),
             upnp_enabled: false,

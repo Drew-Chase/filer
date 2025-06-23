@@ -25,9 +25,18 @@ pub async fn update_config(body: web::Json<Configuration>) -> Result<impl Respon
     body.0.save()?;
 
     // Handle UPnP port forwarding based on configuration changes
-    upnp::handle_config_change(&old_config, &body.0);
+    if let Err(upnp_error) = upnp::handle_config_change(&old_config, &body.0) {
+        // Configuration was saved, but UPnP failed
+        return Ok(HttpResponse::Ok().json(json!({
+            "success": true,
+            "warning": "Configuration saved, but UPnP port forwarding failed",
+            "upnp_error": upnp_error
+        })));
+    }
 
-    Ok(HttpResponse::Ok().finish())
+    Ok(HttpResponse::Ok().json(json!({
+        "success": true
+    })))
 }
 
 #[delete("/")]
