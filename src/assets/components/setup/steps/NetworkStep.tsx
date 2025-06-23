@@ -1,13 +1,12 @@
 import {m} from "framer-motion";
 import {useSetup} from "../../../providers/SetupProvider.tsx";
-import {Button, Chip, Input, Link, NumberInput, Switch, Textarea} from "@heroui/react";
+import {Button, Chip, Input, Link, NumberInput, Spinner, Switch, Textarea} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";
 
 interface NetworkSettings
 {
     port: number;
-    http_root_path: string;
     upnp_enabled: boolean;
     authorized_hosts: string[];
     cors_enabled: boolean;
@@ -24,7 +23,6 @@ interface CreateNetworkConfigRequest
     included_extensions: string[];
     exclude_hidden_files: boolean;
     // Network configuration fields
-    http_root_path: string;
     upnp_enabled: boolean;
     authorized_hosts: string[];
     cors_enabled: boolean;
@@ -36,7 +34,6 @@ export default function NetworkStep()
 
     const [networkSettings, setNetworkSettings] = useState<NetworkSettings>({
         port: 7667,
-        http_root_path: "/",
         upnp_enabled: false,
         authorized_hosts: ["127.0.0.1", "localhost", "::1"],
         cors_enabled: true
@@ -70,7 +67,6 @@ export default function NetworkStep()
                 // Update state with loaded configuration
                 setNetworkSettings({
                     port: config.port ?? 7667,
-                    http_root_path: config.http_root_path ?? "/",
                     upnp_enabled: config.upnp_enabled ?? false,
                     authorized_hosts: config.authorized_hosts ?? ["127.0.0.1", "localhost", "::1"],
                     cors_enabled: config.cors_enabled ?? true
@@ -135,7 +131,7 @@ export default function NetworkStep()
         try
         {
             // First, load the current full configuration
-            const response = await fetch("/api/config/");
+            const response = await fetch("/api/config/?reload");
             if (!response.ok)
             {
                 throw new Error("Failed to load current configuration");
@@ -146,7 +142,6 @@ export default function NetworkStep()
             await saveConfiguration({
                 ...currentConfig,
                 port: networkSettings.port,
-                http_root_path: networkSettings.http_root_path,
                 upnp_enabled: networkSettings.upnp_enabled,
                 authorized_hosts: networkSettings.authorized_hosts,
                 cors_enabled: networkSettings.cors_enabled
@@ -177,8 +172,8 @@ export default function NetworkStep()
                 animate={{opacity: 1}}
                 transition={{duration: 0.25}}
             >
-                <div className={"flex flex-col items-center gap-4"}>
-                    <Icon icon={"mdi:loading"} className={"text-4xl animate-spin text-default-500"}/>
+                <div className={"flex flex-row items-center gap-4"}>
+                    <Spinner size={"md"}/>
                     <span className={"text-lg text-default-500"}>Loading current configuration...</span>
                 </div>
             </m.div>
@@ -217,7 +212,7 @@ export default function NetworkStep()
                 isLoading={isSaving}
                 isDisabled={isSaving}
             >
-                {isSaving ? <Icon icon={"mdi:loading"} className={"animate-spin"}/> : <Icon icon={"maki:arrow"}/>}
+                {isSaving ? null : <Icon icon={"maki:arrow"}/>}
             </Button>
 
             {/* Scrollable Content */}
@@ -247,24 +242,6 @@ export default function NetworkStep()
                 {/* Content with top padding to account for shrunk title */}
                 <div className={"w-full flex flex-col gap-6 items-center justify-start pb-20 pt-8"}>
                     <div className={"w-full max-w-2xl space-y-6"}>
-                        {/* HTTP Root Path */}
-                        <m.div
-                            className={"space-y-2"}
-                            initial={{opacity: 0, y: 20}}
-                            animate={{opacity: 1, y: 0}}
-                            transition={{delay: 0.1}}
-                        >
-                            <Input
-                                label="HTTP Root Path"
-                                placeholder="/"
-                                value={networkSettings.http_root_path}
-                                onChange={(e) => setNetworkSettings(prev => ({...prev, http_root_path: e.target.value}))}
-                                startContent={<Icon icon={"mdi:folder-outline"} className={"text-default-400"}/>}
-                                description="The base path for HTTP requests"
-                                variant="bordered"
-                            />
-                        </m.div>
-
                         {/* Server Port */}
                         <m.div
                             className={"space-y-2"}

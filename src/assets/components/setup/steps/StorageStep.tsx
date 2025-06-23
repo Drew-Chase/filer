@@ -1,6 +1,6 @@
 import {m} from "framer-motion";
 import {useSetup} from "../../../providers/SetupProvider.tsx";
-import {Button, Chip, Input, Link, Radio, RadioGroup, Select, SelectItem, Switch, Textarea} from "@heroui/react";
+import {Button, Chip, Input, Link, Radio, RadioGroup, Select, SelectItem, Spinner, Switch, Textarea} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";
 import SelectDirectoryEntryModal from "../../modals/SelectDirectoryEntryModal.tsx";
@@ -27,7 +27,6 @@ interface CreateStorageConfigRequest
     included_extensions: string[];
     exclude_hidden_files: boolean;
     // Network configuration fields
-    http_root_path: string;
     upnp_enabled: boolean;
     authorized_hosts: string[];
     cors_enabled: boolean;
@@ -66,7 +65,7 @@ export default function StorageStep()
             "**/tmp/**"
         ],
         included_extensions: [".txt", ".pdf", ".doc", ".docx", ".jpg", ".png", ".mp4", ".mp3"],
-        exclude_hidden_files: true,
+        exclude_hidden_files: true
     });
 
     const [filterInput, setFilterInput] = useState("");
@@ -104,7 +103,7 @@ export default function StorageStep()
                     filter_mode_whitelist: config.filter_mode_whitelist ?? false,
                     filter: config.filter ?? [],
                     included_extensions: config.included_extensions ?? [],
-                    exclude_hidden_files: config.exclude_hidden_files ?? true,
+                    exclude_hidden_files: config.exclude_hidden_files ?? true
                 });
             } catch (error)
             {
@@ -189,7 +188,7 @@ export default function StorageStep()
         try
         {
             // First, load the current full configuration
-            const response = await fetch("/api/config/");
+            const response = await fetch("/api/config/?reload");
             if (!response.ok)
             {
                 throw new Error("Failed to load current configuration");
@@ -205,7 +204,7 @@ export default function StorageStep()
                 filter_mode_whitelist: storageSettings.filter_mode_whitelist,
                 filter: storageSettings.filter,
                 included_extensions: storageSettings.included_extensions,
-                exclude_hidden_files: storageSettings.exclude_hidden_files,
+                exclude_hidden_files: storageSettings.exclude_hidden_files
             });
 
             setApiSuccess("Storage configuration saved successfully!");
@@ -243,8 +242,8 @@ export default function StorageStep()
                 animate={{opacity: 1}}
                 transition={{duration: 0.25}}
             >
-                <div className={"flex flex-col items-center gap-4"}>
-                    <Icon icon={"mdi:loading"} className={"text-4xl animate-spin text-default-500"}/>
+                <div className={"flex flex-row items-center gap-4"}>
+                    <Spinner size={"md"}/>
                     <span className={"text-lg text-default-500"}>Loading current configuration...</span>
                 </div>
             </m.div>
@@ -297,7 +296,7 @@ export default function StorageStep()
                 isLoading={isSaving}
                 isDisabled={isSaving}
             >
-                {isSaving ? <Icon icon={"mdi:loading"} className={"animate-spin"}/> : <Icon icon={"maki:arrow"}/>}
+                {isSaving ? null : <Icon icon={"maki:arrow"}/>}
             </Button>
 
             {/* Scrollable Content */}

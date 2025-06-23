@@ -16,8 +16,6 @@ pub struct Configuration {
     pub filter: Vec<String>,
     pub included_extensions: Vec<String>,
     pub exclude_hidden_files: bool,
-    // Network configuration
-    pub http_root_path: String,
     pub upnp_enabled: bool,
     /// A list of authorized hosts for the server, allowing access from these hosts only.
     /// By default, it includes localhost, 127.0.0.1 and the server's own IP address.
@@ -173,7 +171,6 @@ impl Default for Configuration {
             ],
             exclude_hidden_files: true,
             // Network defaults
-            http_root_path: "/".to_string(),
             upnp_enabled: false,
             authorized_hosts: vec![
                 "127.0.0.1".to_string(),
