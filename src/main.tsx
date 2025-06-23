@@ -8,7 +8,7 @@ import LoginPage from "./assets/pages/LoginPage.tsx";
 import Navigation from "./assets/components/Navigation.tsx";
 import {ThemeProvider} from "./assets/providers/ThemeProvider.tsx";
 import {HeroUIProvider, ToastProvider} from "@heroui/react";
-import {AuthProvider} from "./assets/providers/AuthProvider.tsx";
+import {AuthProvider, useAuth} from "./assets/providers/AuthProvider.tsx";
 import FilesPage from "./assets/pages/FilesPage.tsx";
 import ErrorPage from "./assets/pages/ErrorPage.tsx";
 import {FileSystemEntryProvider} from "./assets/providers/FileSystemEntryProvider.tsx";
@@ -41,9 +41,18 @@ export function MainContentRenderer()
 {
     const navigate = useNavigate();
     const [firstSetupState, setFirstSetupState] = React.useState(0);
+    const {logout} = useAuth();
     useEffect(() =>
     {
-        hasCompletedFirstSetup().then(complete => setFirstSetupState(complete ? 1 : 2));
+        hasCompletedFirstSetup().then(complete =>
+        {
+            setFirstSetupState(complete ? 1 : 2);
+            if (!complete)
+            {
+                navigate("/setup");
+                logout();
+            }
+        });
     }, []);
     return (
         <HeroUIProvider navigate={navigate}>
