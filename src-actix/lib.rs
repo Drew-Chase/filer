@@ -8,7 +8,8 @@ use crate::helpers::constants::DEBUG;
 use crate::internal_configuration::{ic_db, ic_endpoint};
 use crate::io::fs::indexer::indexer_data::IndexerData;
 use crate::io::fs::indexer::{indexer_data, indexer_db};
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use crate::middleware::network::NetworkMiddleware;
+use actix_web::{middleware as actix_middleware, web, App, HttpResponse, HttpServer};
 use anyhow::Result;
 use clap::Parser;
 use io::fs::filesystem_endpoint;
@@ -27,6 +28,7 @@ mod configuration;
 pub(crate) mod helpers;
 mod internal_configuration;
 pub mod io;
+mod middleware;
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder()
@@ -74,7 +76,10 @@ pub async fn run() -> Result<()> {
 
     // Initialize UPnP functionality with the actual port being used
     if config.upnp_enabled {
-        upnp::update_port_forwarding(port);
+        if let Err(upnp_error) = upnp::update_port_forwarding(port) {
+            warn!("UPnP port forwarding failed: {}", upnp_error);
+            // We continue with server startup even if UPnP fails
+        }
     }
 
     auth_db::initialize().await?;
@@ -102,7 +107,8 @@ pub async fn run() -> Result<()> {
     let server = HttpServer::new(move || {
         App::new().service(
             web::scope(config.http_root_path.as_str().trim_matches('/'))
-                .wrap(middleware::Logger::default())
+                .wrap(actix_middleware::Logger::default())
+                .wrap(NetworkMiddleware) // Add our network middleware for CORS and IP filtering
                 .app_data(
                     web::JsonConfig::default()
                         .limit(4096)
