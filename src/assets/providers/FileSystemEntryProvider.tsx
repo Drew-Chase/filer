@@ -88,6 +88,13 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
                 .then(data =>
                 {
                     sortEntries(data);
+
+                    // Check if we need to redirect to root path
+                    // If the parent is null and we're not already at the root, redirect to root
+                    if (data.parent === null && path !== "/" && !path.startsWith(data.entries[0]?.path || "/")) {
+                        console.log("Path outside of root_path detected, redirecting to root");
+                        reactNavigate("/files/");
+                    }
                 })
                 .catch(e =>
                 {
@@ -140,15 +147,23 @@ export function FileSystemEntryProvider({children}: { children: ReactNode })
             .then(data =>
             {
                 sortEntries(data);
+
+                // Check if we need to redirect to root path
+                if (data.parent === null && currentPath !== "/" && !currentPath.startsWith(data.entries[0]?.path || "/")) {
+                    console.log("Path outside of root_path detected during refresh, redirecting to root");
+                    reactNavigate("/files/");
+                } else {
+                    reactNavigate(`/files${currentPath.startsWith("/") ? currentPath : "/" + currentPath}`);
+                }
             })
             .catch(e =>
             {
                 console.error("Error getting entries:", e);
                 setData({parent: null, entries: []});
+                reactNavigate("/files/"); // Redirect to root on error
             })
             .finally(() =>
             {
-                reactNavigate(`/files${currentPath.startsWith("/") ? currentPath : "/" + currentPath}`);
                 setLoading(false);
             });
     }, [currentPath]);

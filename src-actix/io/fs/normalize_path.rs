@@ -51,9 +51,10 @@ impl NormalizePath for String {
     /// 
     /// This implementation:
     /// 1. Gets the root_path from configuration
-    /// 2. Handles special cases like the root path ("/") and Windows drive letters
+    /// 2. Handles special cases like the root path ("/")
     /// 3. Normalizes the path according to platform
     /// 4. Combines the root_path with the normalized path
+    /// 5. Validates that the resulting path is within the root_path
     /// 
     /// For example, if root_path is "/home/user/files" and the path is "/documents/file.txt",
     /// the resulting path will be "/home/user/files/documents/file.txt".
@@ -61,20 +62,16 @@ impl NormalizePath for String {
         // Get the root path from configuration
         let config = Configuration::get();
         let root_path = &config.root_path;
+        let root_path_buf = PathBuf::from(root_path);
 
         // Special case: if the path is exactly "/", return the root path
         if self == "/" {
-            return PathBuf::from(root_path);
+            return root_path_buf;
         }
 
         #[cfg(target_os = "windows")]
         {
             // On Windows, we need to handle paths differently
-
-            // If the path contains a drive letter (e.g., "C:"), don't apply root_path
-            if self.len() >= 2 && self.chars().nth(1) == Some(':') {
-                return PathBuf::from(self);
-            }
 
             // Strip leading slash if present
             let normalized_path = if let Some(stripped) = self.strip_prefix("/") {
@@ -84,7 +81,7 @@ impl NormalizePath for String {
             };
 
             // Combine the root path with the normalized path
-            if root_path == "/" {
+            let final_path = if root_path == "/" {
                 // If root_path is "/", use the normalized path
                 PathBuf::from(normalized_path)
             } else {
@@ -94,6 +91,26 @@ impl NormalizePath for String {
                     path = path.join(normalized_path);
                 }
                 path
+            };
+
+            // Validate that the path is within the root_path
+            // Convert both paths to canonical form to handle ".." and other relative path components
+            match final_path.canonicalize() {
+                Ok(canonical_path) => {
+                    match root_path_buf.canonicalize() {
+                        Ok(canonical_root) => {
+                            // Check if the canonical path starts with the canonical root path
+                            if canonical_path.starts_with(&canonical_root) {
+                                return final_path;
+                            } else {
+                                // If not, return the root path
+                                return root_path_buf;
+                            }
+                        },
+                        Err(_) => return root_path_buf, // If we can't canonicalize the root path, return it as is
+                    }
+                },
+                Err(_) => return root_path_buf, // If we can't canonicalize the path, return the root path
             }
         }
 
@@ -108,11 +125,12 @@ impl NormalizePath for String {
 
             // If the normalized path is just "/", return the root path
             if normalized_path == "/" {
-                return PathBuf::from(root_path);
+                return root_path_buf;
             }
 
-            // If root_path is "/", use the normalized path
-            if root_path == "/" {
+            // Combine the root path with the normalized path
+            let final_path = if root_path == "/" {
+                // If root_path is "/", use the normalized path
                 PathBuf::from(normalized_path)
             } else {
                 // Otherwise, join the root path with the path without the leading "/"
@@ -122,6 +140,26 @@ impl NormalizePath for String {
                     path = path.join(path_without_leading_slash);
                 }
                 path
+            };
+
+            // Validate that the path is within the root_path
+            // Convert both paths to canonical form to handle ".." and other relative path components
+            match final_path.canonicalize() {
+                Ok(canonical_path) => {
+                    match root_path_buf.canonicalize() {
+                        Ok(canonical_root) => {
+                            // Check if the canonical path starts with the canonical root path
+                            if canonical_path.starts_with(&canonical_root) {
+                                return final_path;
+                            } else {
+                                // If not, return the root path
+                                return root_path_buf;
+                            }
+                        },
+                        Err(_) => return root_path_buf, // If we can't canonicalize the root path, return it as is
+                    }
+                },
+                Err(_) => return root_path_buf, // If we can't canonicalize the path, return the root path
             }
         }
     }
