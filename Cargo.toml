@@ -5,7 +5,7 @@ edition = "2024"
 build = "src-actix/build.rs"
 authors = ["Drew Chase"]
 repository = "https://github.com/Drew-Chase/filer"
-description = "An online file browser"
+description = "Filer is a powerful remote file management tool designed to help you organize, search, and manage your files efficiently. "
 
 
 [[bin]]
