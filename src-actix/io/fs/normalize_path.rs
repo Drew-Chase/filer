@@ -101,16 +101,16 @@ impl NormalizePath for String {
                         Ok(canonical_root) => {
                             // Check if the canonical path starts with the canonical root path
                             if canonical_path.starts_with(&canonical_root) {
-                                return final_path;
+                                final_path
                             } else {
                                 // If not, return the root path
-                                return root_path_buf;
+                                root_path_buf
                             }
                         },
-                        Err(_) => return root_path_buf, // If we can't canonicalize the root path, return it as is
+                        Err(_) => root_path_buf, // If we can't canonicalize the root path, return it as is
                     }
                 },
-                Err(_) => return root_path_buf, // If we can't canonicalize the path, return the root path
+                Err(_) => root_path_buf, // If we can't canonicalize the path, return the root path
             }
         }
 
