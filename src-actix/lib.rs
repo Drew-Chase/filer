@@ -21,13 +21,13 @@ use tokio::fs;
 use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
 
-mod arguments;
-mod auth;
-mod configuration;
-pub(crate) mod helpers;
-mod internal_configuration;
+pub mod arguments;
+pub mod auth;
+pub mod configuration;
+pub mod helpers;
+pub mod internal_configuration;
 pub mod io;
-mod middleware;
+pub mod middleware;
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder()
@@ -36,7 +36,6 @@ pub async fn run() -> Result<()> {
         .init();
 
     let args = FilerArguments::parse();
-
     info!("Starting server...");
     if DEBUG {
         ProxyViteOptions::new().log_level(Info).build()?;
@@ -68,8 +67,7 @@ pub async fn run() -> Result<()> {
     }
 
     Configuration::set_path("app-config.json")?;
-    Configuration::load()?;
-    let config = Configuration::get();
+    let config = Configuration::load()?;
 
     let port = args.port.unwrap_or(config.port);
 
