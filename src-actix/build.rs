@@ -2,8 +2,6 @@ use std::fs;
 use walkdir::WalkDir;
 
 fn main() {
-    #![cfg(target_os = "windows")]
-    // Platform-specific icon handling
     #[cfg(target_os = "windows")]
     {
         println!("cargo:rustc-link-lib=./resources/windows");
