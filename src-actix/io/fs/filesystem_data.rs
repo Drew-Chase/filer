@@ -90,7 +90,7 @@ impl TryFrom<PathBuf> for FilesystemData {
 
         // Format parent path according to platform
         let parent = path.parent().map(|p| {
-            let parent_str = p.to_str().unwrap_or("/");
+            let parent_str = p.to_str().unwrap_or("");
             #[cfg(unix)]
             {
                 // On Unix, ensure parent path starts with "/"
