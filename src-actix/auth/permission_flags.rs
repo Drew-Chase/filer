@@ -99,8 +99,7 @@ impl PermissionFlags {
     /// // Output might be: 0b00111111 (if 6 permissions combined starting from least significant bit)
     /// ```
     pub fn all() -> u8 {
-        (Self::Read | Self::Write | Self::Delete | Self::Create | Self::Upload | Self::Download)
-            .bits_c()
+        (Self::Read | Self::Write | Self::Delete | Self::Create | Self::Upload | Self::Download).bits_c()
     }
     /// Converts permissions strings into a `BitFlags<PermissionFlags>`.
     ///
@@ -180,10 +179,7 @@ impl PermissionFlags {
                 }
             }
         }
-        info!(
-            "Permissions successfully processed, resulting flags: {:?}",
-            flags
-        );
+        info!("Permissions successfully processed, resulting flags: {:?}", flags);
         Ok(flags)
     }
 }

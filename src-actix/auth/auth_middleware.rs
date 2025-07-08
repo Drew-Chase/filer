@@ -1,11 +1,11 @@
 use crate::auth::auth_data::User;
-use actix_web::dev::{forward_ready, Service};
+use crate::auth::auth_endpoint::TOKEN_COOKIE_KEY;
+use actix_web::Error;
+use actix_web::dev::{Service, forward_ready};
 use actix_web::dev::{ServiceRequest, ServiceResponse, Transform};
 use actix_web::error::ErrorUnauthorized;
-use actix_web::Error;
-use futures::future::{ready, LocalBoxFuture, Ready};
+use futures::future::{LocalBoxFuture, Ready, ready};
 use std::rc::Rc;
-use crate::auth::auth_endpoint::TOKEN_COOKIE_KEY;
 
 pub struct Authentication;
 
@@ -27,9 +27,7 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(AuthenticationMiddleware {
-            service: Rc::new(service),
-        }))
+        ready(Ok(AuthenticationMiddleware { service: Rc::new(service) }))
     }
 }
 
@@ -64,18 +62,14 @@ where
                                 if let Some(user) = user_result {
                                     if let Some(ip_address) = connection_info.realip_remote_addr() {
                                         let host = connection_info.host().to_owned();
-                                        if let Ok(is_valid) = user.authenticate_with_session_token(
-                                            ip_address, &host, token,
-                                        ) {
+                                        if let Ok(is_valid) = user.authenticate_with_session_token(ip_address, &host, token) {
                                             if is_valid {
                                                 return service.call(req).await;
                                             }
                                         }
                                     }
                                 }
-                                return Err(ErrorUnauthorized(
-                                    "Missing or invalid authentication token",
-                                ));
+                                return Err(ErrorUnauthorized("Missing or invalid authentication token"));
                             }
                         }
                     }
@@ -89,9 +83,7 @@ where
 
                 if let Ok(users) = User::list().await {
                     for user in users {
-                        if let Ok(is_valid) =
-                            user.authenticate_with_session_token(ip, &host, &token)
-                        {
+                        if let Ok(is_valid) = user.authenticate_with_session_token(ip, &host, &token) {
                             if is_valid {
                                 return service.call(req).await;
                             }

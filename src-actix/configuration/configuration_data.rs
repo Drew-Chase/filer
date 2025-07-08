@@ -28,31 +28,21 @@ impl Configuration {
         if let Some(config) = CONFIGURATION.get() {
             config
         } else {
-            CONFIGURATION
-                .set(Self::default())
-                .expect("Failed to set default configuration in OnceLock");
-            CONFIGURATION
-                .get()
-                .expect("Failed to get configuration from OnceLock after setting default")
+            CONFIGURATION.set(Self::default()).expect("Failed to set default configuration in OnceLock");
+            CONFIGURATION.get().expect("Failed to get configuration from OnceLock after setting default")
         }
     }
     pub fn get_path() -> &'static Option<String> {
-        CONFIGURATION_PATH
-            .get()
-            .expect("Configuration path OnceLock not initialized")
+        CONFIGURATION_PATH.get().expect("Configuration path OnceLock not initialized")
     }
     pub fn set_path(path: impl AsRef<Path>) -> anyhow::Result<()> {
         debug!("Setting configuration path to {:?}", path.as_ref());
-        CONFIGURATION_PATH
-            .set(Some(path.as_ref().to_string_lossy().to_string()))
-            .map_err(|_| anyhow::anyhow!("Failed to set configuration path"))?;
+        CONFIGURATION_PATH.set(Some(path.as_ref().to_string_lossy().to_string())).map_err(|_| anyhow::anyhow!("Failed to set configuration path"))?;
         Ok(())
     }
     pub fn load() -> anyhow::Result<Self> {
         debug!("Loading configuration");
-        let path = Self::get_path()
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("Configuration path is not set"))?;
+        let path = Self::get_path().clone().ok_or_else(|| anyhow::anyhow!("Configuration path is not set"))?;
         if !Path::new(path.as_str()).exists() {
             warn!("Configuration file does not exist, resetting to default");
             Self::reset()?;
@@ -72,9 +62,7 @@ impl Configuration {
         }
     }
     pub fn save(&self) -> anyhow::Result<()> {
-        let path = Self::get_path()
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("Configuration path is not set"))?;
+        let path = Self::get_path().clone().ok_or_else(|| anyhow::anyhow!("Configuration path is not set"))?;
         debug!("Saving configuration to {:?}", path);
         let file_contents = serde_json::to_string_pretty(self)?;
         std::fs::write(path, file_contents)?;
@@ -89,22 +77,18 @@ impl Configuration {
 impl Default for Configuration {
     fn default() -> Self {
         // Get the current executable path, falling back to empty string if it fails
-        let current_exe_path = std::env::current_exe()
-            .ok()
-            .and_then(|path| path.parent().map(|p| p.to_string_lossy().to_string()))
-            .unwrap_or_else(|| {
+        let current_exe_path =
+            std::env::current_exe().ok().and_then(|path| path.parent().map(|p| p.to_string_lossy().to_string())).unwrap_or_else(|| {
                 warn!("Failed to get current executable path, using empty string");
                 String::new()
             });
         let current_exe_path = current_exe_path.as_str().replace('\\', "/");
 
         // Get the current working directory, falling back to an empty string if it fails
-        let cwd = std::env::current_dir()
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|_| {
-                warn!("Failed to get current working directory, using empty string");
-                String::new()
-            });
+        let cwd = std::env::current_dir().map(|path| path.to_string_lossy().to_string()).unwrap_or_else(|_| {
+            warn!("Failed to get current working directory, using empty string");
+            String::new()
+        });
         let cwd = cwd.as_str().replace('\\', "/");
         let cwd = format!("{}/**/*", cwd);
         let current_exe_path = format!("{}/**/*", current_exe_path);
@@ -146,11 +130,7 @@ impl Default for Configuration {
         }
 
         let ignored_paths = ignored_paths.into_iter().map(String::from).collect();
-        let server_computer_ip_address = if let Some(ip) = local_ipaddress::get() {
-            ip
-        } else {
-            "".to_string()
-        };
+        let server_computer_ip_address = if let Some(ip) = local_ipaddress::get() { ip } else { "".to_string() };
 
         Self {
             port: 7667,
@@ -172,11 +152,7 @@ impl Default for Configuration {
             exclude_hidden_files: true,
             // Network defaults
             upnp_enabled: false,
-            authorized_hosts: vec![
-                "127.0.0.1".to_string(),
-                "localhost".to_string(),
-                server_computer_ip_address,
-            ],
+            authorized_hosts: vec!["127.0.0.1".to_string(), "localhost".to_string(), server_computer_ip_address],
             cors_enabled: true,
         }
     }

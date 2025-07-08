@@ -45,14 +45,9 @@ impl<'r> FromRow<'r, sqlx::sqlite::SqliteRow> for User {
         let username: String = row.try_get("username")?;
         let password: String = row.try_get("password")?;
         let permissions_raw: i64 = row.try_get("permissions")?;
-        
+
         let permissions = BitFlags::from_bits_truncate(permissions_raw as u8);
-        
-        Ok(User {
-            id: id as u64,
-            username,
-            password,
-            permissions,
-        })
+
+        Ok(User { id: id as u64, username, password, permissions })
     }
 }

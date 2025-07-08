@@ -61,16 +61,11 @@ async fn get_filesystem_entries(request: HttpRequest) -> Result<impl Responder> 
         Some(header) => match header.to_str() {
             Ok(path_str) => path_str.to_os_path(),
             Err(_) => {
-                return Err(Error::invalid_input(
-                    "X-Filesystem-Path header is not a valid string",
-                ));
+                return Err(Error::invalid_input("X-Filesystem-Path header is not a valid string"));
             }
         },
         None => {
-            return Err(Error::validation_error(
-                "X-Filesystem-Path header is missing",
-                Some("X-Filesystem-Path"),
-            ));
+            return Err(Error::validation_error("X-Filesystem-Path header is missing", Some("X-Filesystem-Path")));
         }
     };
 
@@ -124,27 +119,15 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
     use archflow::error::ArchiveError;
     use archflow::types::FileDateTime;
     let cwd = query.cwd.to_os_path();
-    let items: Vec<PathBuf> = query
-        .items
-        .iter()
-        .map(|item| format!("{}{}", query.cwd, item).to_os_path())
-        .collect();
+    let items: Vec<PathBuf> = query.items.iter().map(|item| format!("{}{}", query.cwd, item).to_os_path()).collect();
 
     let is_single_entry = items.len() == 1;
     let is_single_entry_directory = is_single_entry && items[0].is_dir();
 
     let filename: String = if is_single_entry {
         let guid = uuid::Uuid::new_v4().to_string();
-        let name = items[0]
-            .file_name()
-            .unwrap_or(OsStr::new(&guid))
-            .to_string_lossy()
-            .into_owned();
-        if is_single_entry_directory {
-            format!("{}.zip", name)
-        } else {
-            name.to_string()
-        }
+        let name = items[0].file_name().unwrap_or(OsStr::new(&guid)).to_string_lossy().into_owned();
+        if is_single_entry_directory { format!("{}.zip", name) } else { name.to_string() }
     } else {
         format!("{}.zip", uuid::Uuid::new_v4())
     };
@@ -156,11 +139,7 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
         debug!("Downloading single file: {}", filepath.display());
 
         let file = File::open(&filepath).await.map_err(|e| {
-            Error::filesystem_error(
-                format!("Failed to open file for download: {}", filepath.display()),
-                Some(e),
-                Some(filepath.clone()),
-            )
+            Error::filesystem_error(format!("Failed to open file for download: {}", filepath.display()), Some(e), Some(filepath.clone()))
         })?;
         let stream = ReaderStream::new(file);
 
@@ -176,9 +155,7 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
 
     tokio::spawn(async move {
         let mut archive = ZipArchive::new_streamable(w);
-        let options = FileOptions::default()
-            .last_modified_time(FileDateTime::Now)
-            .compression_method(CompressionMethod::Store());
+        let options = FileOptions::default().last_modified_time(FileDateTime::Now).compression_method(CompressionMethod::Store());
 
         // Collect all files paths to put in the zip
         let items_to_write = if is_single_entry_directory {
@@ -212,54 +189,26 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
                         let relative_path = path.strip_prefix(&cwd).unwrap_or(path);
 
                         if path.is_dir() {
-                            debug!(
-                                "Adding directory to zip archive: {} -> {}",
-                                path.display(),
-                                relative_path.display()
-                            );
-                            if let Err(e) = archive
-                                .append_directory(
-                                    relative_path.to_string_lossy().replace('\\', "/").as_ref(),
-                                    &options,
-                                )
-                                .await
-                            {
+                            debug!("Adding directory to zip archive: {} -> {}", path.display(), relative_path.display());
+                            if let Err(e) = archive.append_directory(relative_path.to_string_lossy().replace('\\', "/").as_ref(), &options).await {
                                 error!("Failed to add directory to zip archive: {}", e);
                                 continue;
                             }
                             continue; // Directories are automatically created when adding files
                         }
 
-                        debug!(
-                            "Adding file to zip archive: {} -> {}",
-                            path.display(),
-                            relative_path.display()
-                        );
+                        debug!("Adding file to zip archive: {} -> {}", path.display(), relative_path.display());
                         if let Ok(mut file) = File::open(path).await {
-                            let _ = archive
-                                .append(
-                                    relative_path.to_string_lossy().replace('\\', "/").as_ref(),
-                                    &options,
-                                    &mut file,
-                                )
-                                .await;
+                            let _ = archive.append(relative_path.to_string_lossy().replace('\\', "/").as_ref(), &options, &mut file).await;
                         }
                     }
                 } else {
                     // Process a single file
-                    debug!(
-                        "Adding file to zip archive: {} -> {}",
-                        item.display(),
-                        filename
-                    );
+                    debug!("Adding file to zip archive: {} -> {}", item.display(), filename);
                     if let Ok(mut file) = File::open(&item).await {
-                        if let Err(e) = archive.append(filename.as_str(), &options, &mut file).await
-                        {
-                            if matches!(&e, ArchiveError::IoError(err) if err.kind() == ErrorKind::BrokenPipe)
-                            {
-                                warn!(
-                                    "Zip archive stream closed, this is most-likely due to the client closing the connection."
-                                );
+                        if let Err(e) = archive.append(filename.as_str(), &options, &mut file).await {
+                            if matches!(&e, ArchiveError::IoError(err) if err.kind() == ErrorKind::BrokenPipe) {
+                                warn!("Zip archive stream closed, this is most-likely due to the client closing the connection.");
                                 break;
                             }
                             error!("Failed to add file to zip archive: {}", e);
@@ -273,19 +222,13 @@ async fn download(query: Query<DownloadParameters>) -> Result<impl Responder> {
         let _ = archive.finalize().await;
     });
 
-    Ok(HttpResponse::Ok()
-        .content_type("application/zip")
-        .insert_header(ContentDisposition::attachment(filename))
-        .streaming(ReaderStream::new(r)))
+    Ok(HttpResponse::Ok().content_type("application/zip").insert_header(ContentDisposition::attachment(filename)).streaming(ReaderStream::new(r)))
 }
 
 #[get("search")]
 async fn search(query_map: Query<HashMap<String, String>>) -> Result<impl Responder> {
     if let Some(query) = query_map.get("q") {
-        let filename_only = query_map
-            .get("filename_only")
-            .map(|s| s == "true")
-            .unwrap_or(false);
+        let filename_only = query_map.get("filename_only").map(|s| s == "true").unwrap_or(false);
         let results = IndexerData::search(query, filename_only).await?;
         Ok(HttpResponse::Ok().json(json!(results)))
     } else {
@@ -483,20 +426,11 @@ async fn copy_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<imp
     let source_paths = body
         .get("entries")
         .and_then(|entries| entries.as_array())
-        .map(|values| {
-            values
-                .iter()
-                .filter_map(|e| e.as_str().map(|i| i.to_os_path()))
-                .collect::<Vec<_>>()
-        })
+        .map(|values| values.iter().filter_map(|e| e.as_str().map(|i| i.to_os_path())).collect::<Vec<_>>())
         .ok_or_else(|| anyhow::anyhow!("Invalid entries array"))?;
 
     // Extract destination path
-    let dest_path = body
-        .get("path")
-        .and_then(|path| path.as_str())
-        .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?
-        .to_os_path();
+    let dest_path = body.get("path").and_then(|path| path.as_str()).ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?.to_os_path();
 
     // Verify source paths exist
     for source_path in &source_paths {
@@ -557,20 +491,11 @@ async fn move_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<imp
     let source_paths = body
         .get("entries")
         .and_then(|entries| entries.as_array())
-        .map(|values| {
-            values
-                .iter()
-                .filter_map(|e| e.as_str().map(|i| i.to_os_path()))
-                .collect::<Vec<_>>()
-        })
+        .map(|values| values.iter().filter_map(|e| e.as_str().map(|i| i.to_os_path())).collect::<Vec<_>>())
         .ok_or_else(|| anyhow::anyhow!("Invalid entries array"))?;
 
     // Extract destination path
-    let dest_path = body
-        .get("path")
-        .and_then(|path| path.as_str())
-        .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?
-        .to_os_path();
+    let dest_path = body.get("path").and_then(|path| path.as_str()).ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?.to_os_path();
 
     // Move each source to a destination
     for source_path in source_paths {
@@ -597,16 +522,8 @@ async fn move_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<imp
 #[post("/rename")]
 async fn rename_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
     // Extract destination path
-    let source_path = body
-        .get("source")
-        .and_then(|path| path.as_str())
-        .ok_or_else(|| anyhow::anyhow!("Invalid source path"))?
-        .to_os_path();
-    let dest_path = body
-        .get("destination")
-        .and_then(|path| path.as_str())
-        .ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?
-        .to_os_path();
+    let source_path = body.get("source").and_then(|path| path.as_str()).ok_or_else(|| anyhow::anyhow!("Invalid source path"))?.to_os_path();
+    let dest_path = body.get("destination").and_then(|path| path.as_str()).ok_or_else(|| anyhow::anyhow!("Invalid destination path"))?.to_os_path();
 
     if !source_path.exists() {
         return Ok(HttpResponse::NotFound().json(json!({
@@ -629,10 +546,7 @@ async fn rename_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<i
 async fn delete_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
     let paths = match body.get("paths") {
         Some(paths) => match paths.as_array() {
-            Some(array) => array
-                .iter()
-                .filter_map(|p| p.as_str().map(|i| i.to_os_path()))
-                .collect::<Vec<PathBuf>>(),
+            Some(array) => array.iter().filter_map(|p| p.as_str().map(|i| i.to_os_path())).collect::<Vec<PathBuf>>(),
             None => {
                 return Ok(HttpResponse::BadRequest().json(json!({
                     "error": "paths must be an array"
@@ -683,27 +597,16 @@ async fn new_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl
         .map(|i| i.to_os_path())
         .ok_or_else(|| Error::validation_error("path field is missing", Some("path")))?;
 
-    let is_directory = body
-        .get("is_directory")
-        .and_then(|d| d.as_bool())
-        .unwrap_or(false);
+    let is_directory = body.get("is_directory").and_then(|d| d.as_bool()).unwrap_or(false);
 
     if is_directory {
-        fs::create_dir_all(&file_path).await.map_err(|e| {
-            Error::filesystem_error(
-                format!("Failed to create directory: {}", file_path.display()),
-                Some(e),
-                Some(file_path.clone()),
-            )
-        })?;
+        fs::create_dir_all(&file_path)
+            .await
+            .map_err(|e| Error::filesystem_error(format!("Failed to create directory: {}", file_path.display()), Some(e), Some(file_path.clone())))?;
     } else {
-        File::create(&file_path).await.map_err(|e| {
-            Error::filesystem_error(
-                format!("Failed to create file: {}", file_path.display()),
-                Some(e),
-                Some(file_path.clone()),
-            )
-        })?;
+        File::create(&file_path)
+            .await
+            .map_err(|e| Error::filesystem_error(format!("Failed to create file: {}", file_path.display()), Some(e), Some(file_path.clone())))?;
     }
 
     Ok(HttpResponse::Ok().finish())
@@ -713,10 +616,7 @@ async fn new_filesystem_entry(body: web::Json<serde_json::Value>) -> Result<impl
 async fn get_indexer_stats() -> Result<impl Responder> {
     let (count, total_size, avg_size) = IndexerData::get_stats().await.map_err(|e| {
         error!("Error getting indexer stats: {}", e);
-        Error::database_error(
-            format!("Failed to get indexer statistics: {}", e),
-            Some(anyhow::anyhow!(e)),
-        )
+        Error::database_error(format!("Failed to get indexer statistics: {}", e), Some(anyhow::anyhow!(e)))
     })?;
 
     Ok(HttpResponse::Ok().json(json!({
@@ -736,19 +636,12 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
     let filenames = body
         .get("entries")
         .and_then(|entries| entries.as_array())
-        .map(|values| {
-            values
-                .iter()
-                .filter_map(|e| e.as_str().map(String::from))
-                .collect::<Vec<_>>()
-        })
+        .map(|values| values.iter().filter_map(|e| e.as_str().map(String::from)).collect::<Vec<_>>())
         .ok_or_else(|| Error::validation_error("Invalid entries array", Some("entries")))?;
     let cwd = body
         .get("cwd")
         .and_then(|cwd| cwd.as_str())
-        .ok_or_else(|| {
-            Error::validation_error("Current working directory is required", Some("cwd"))
-        })?
+        .ok_or_else(|| Error::validation_error("Current working directory is required", Some("cwd")))?
         .to_os_path();
     let archive_file_name = body
         .get("filename")
@@ -758,10 +651,7 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
         .get("tracker_id")
         .and_then(|filename| filename.as_str())
         .ok_or_else(|| Error::validation_error("Tracker ID is required", Some("tracker_id")))?;
-    let absolute_file_paths = filenames
-        .iter()
-        .map(|filename| cwd.join(filename))
-        .collect::<Vec<_>>();
+    let absolute_file_paths = filenames.iter().map(|filename| cwd.join(filename)).collect::<Vec<_>>();
     let archive_path = cwd.join(archive_file_name);
 
     let trackers = get_archive_trackers().lock().await;
@@ -776,19 +666,8 @@ async fn archive_paths(body: web::Json<serde_json::Value>) -> Result<impl Respon
         }
 
         // Run the archive operation with the cancellation flag
-        archive_wrapper::archive(
-            archive_path.clone(),
-            absolute_file_paths,
-            tracker,
-            &cancel_flag,
-        )
-        .await
-        .map_err(|_| {
-            Error::filesystem_error(
-                format!("Failed to create archive: {}", archive_path.display()),
-                None,
-                Some(archive_path.clone()),
-            )
+        archive_wrapper::archive(archive_path.clone(), absolute_file_paths, tracker, &cancel_flag).await.map_err(|_| {
+            Error::filesystem_error(format!("Failed to create archive: {}", archive_path.display()), None, Some(archive_path.clone()))
         })?;
 
         // Clean up the cancellation flag
@@ -836,10 +715,7 @@ async fn cancel_archive(tracker_id: web::Path<String>) -> Result<impl Responder>
         })))
     } else {
         // If the tracker doesn't exist, it might have already completed or never existed
-        warn!(
-            "Attempted to cancel non-existent archive operation with ID {}",
-            tracker_id
-        );
+        warn!("Attempted to cancel non-existent archive operation with ID {}", tracker_id);
 
         Ok(HttpResponse::NotFound().json(json!({
             "status": "error",
@@ -866,10 +742,7 @@ async fn cancel_upload(upload_id: web::Path<String>) -> Result<impl Responder> {
         })))
     } else {
         // If the tracker doesn't exist, it might have already completed or never existed
-        warn!(
-            "Attempted to cancel non-existent upload operation with ID {}",
-            upload_id
-        );
+        warn!("Attempted to cancel non-existent upload operation with ID {}", upload_id);
 
         Ok(HttpResponse::NotFound().json(json!({
             "status": "error",
@@ -900,25 +773,23 @@ fn format_size(size: u64) -> String {
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
-        web::scope("/filesystem")
-            .service(get_filesystem_entries)
-            .service(
-                web::scope("")
-                    .wrap(Authentication::new())
-                    .service(archive_paths)
-                    .service(get_archive_status)
-                    .service(cancel_archive)
-                    .service(download)
-                    .service(search)
-                    .service(upload)
-                    .service(upload_progress)
-                    .service(cancel_upload)
-                    .service(copy_filesystem_entry)
-                    .service(move_filesystem_entry)
-                    .service(rename_filesystem_entry)
-                    .service(delete_filesystem_entry)
-                    .service(new_filesystem_entry)
-                    .service(get_indexer_stats),
-            ),
+        web::scope("/filesystem").service(get_filesystem_entries).service(
+            web::scope("")
+                .wrap(Authentication::new())
+                .service(archive_paths)
+                .service(get_archive_status)
+                .service(cancel_archive)
+                .service(download)
+                .service(search)
+                .service(upload)
+                .service(upload_progress)
+                .service(cancel_upload)
+                .service(copy_filesystem_entry)
+                .service(move_filesystem_entry)
+                .service(rename_filesystem_entry)
+                .service(delete_filesystem_entry)
+                .service(new_filesystem_entry)
+                .service(get_indexer_stats),
+        ),
     );
 }

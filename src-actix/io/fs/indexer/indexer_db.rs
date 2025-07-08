@@ -35,26 +35,18 @@ pub async fn initialize() -> anyhow::Result<()> {
     .await?;
 
     // Create an index on trigrams for faster searching
-    pool.execute(r#"CREATE INDEX IF NOT EXISTS idx_trigram ON path_trigrams(trigram);"#)
-        .await?;
+    pool.execute(r#"CREATE INDEX IF NOT EXISTS idx_trigram ON path_trigrams(trigram);"#).await?;
 
     // Check if the trigram table is empty
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM path_trigrams")
-        .fetch_one(&pool)
-        .await?;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM path_trigrams").fetch_one(&pool).await?;
 
     // If the trigram table is empty, but we have data in the index table,
     // rebuild the trigram index
     if count == 0 {
-        let index_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexes")
-            .fetch_one(&pool)
-            .await?;
+        let index_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexes").fetch_one(&pool).await?;
 
         if index_count > 0 {
-            log::info!(
-                "Rebuilding trigram index for {} existing records...",
-                index_count
-            );
+            log::info!("Rebuilding trigram index for {} existing records...", index_count);
             rebuild_trigram_index().await?;
             log::info!("Trigram index rebuilt successfully.");
         }
@@ -68,16 +60,14 @@ impl IndexerData {
         let mut tx = pool.begin().await?;
 
         // Insert into the main indexes table
-        let result = sqlx::query(
-            r#"INSERT INTO indexes (path, filename, mtime, ctime, size) VALUES (?, ?, ?, ?, ?)"#,
-        )
-        .bind(&self.path)
-        .bind(&self.filename)
-        .bind(self.mtime as i64)
-        .bind(self.ctime as i64)
-        .bind(self.size as i64)
-        .execute(&mut *tx)
-        .await?;
+        let result = sqlx::query(r#"INSERT INTO indexes (path, filename, mtime, ctime, size) VALUES (?, ?, ?, ?, ?)"#)
+            .bind(&self.path)
+            .bind(&self.filename)
+            .bind(self.mtime as i64)
+            .bind(self.ctime as i64)
+            .bind(self.size as i64)
+            .execute(&mut *tx)
+            .await?;
 
         // Get the last inserted ID
         let id = result.last_insert_rowid();
@@ -96,11 +86,7 @@ impl IndexerData {
 
         // Insert trigrams
         for trigram in all_trigrams {
-            sqlx::query(r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#)
-                .bind(id)
-                .bind(&trigram)
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query(r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#).bind(id).bind(&trigram).execute(&mut *tx).await?;
         }
 
         // Commit the transaction
@@ -128,18 +114,12 @@ impl IndexerData {
             .await?;
 
         // Get the ID for this path
-        let row = sqlx::query(r#"SELECT id FROM indexes WHERE path = ?"#)
-            .bind(&self.path)
-            .fetch_one(&mut *tx)
-            .await?;
+        let row = sqlx::query(r#"SELECT id FROM indexes WHERE path = ?"#).bind(&self.path).fetch_one(&mut *tx).await?;
 
         let id: i64 = row.get(0);
 
         // Delete existing trigrams
-        sqlx::query(r#"DELETE FROM path_trigrams WHERE path_id = ?"#)
-            .bind(id)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query(r#"DELETE FROM path_trigrams WHERE path_id = ?"#).bind(id).execute(&mut *tx).await?;
 
         // Generate trigrams for path and filename (for better search)
         let path_trigrams = generate_trigrams(&self.path);
@@ -155,11 +135,7 @@ impl IndexerData {
 
         // Insert trigrams
         for trigram in all_trigrams {
-            sqlx::query(r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#)
-                .bind(id)
-                .bind(&trigram)
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query(r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#).bind(id).bind(&trigram).execute(&mut *tx).await?;
         }
 
         // Commit the transaction
@@ -178,26 +154,17 @@ impl IndexerData {
         let mut tx = pool.begin().await?;
 
         // Get the ID for this path
-        let row_opt = sqlx::query(r#"SELECT id FROM indexes WHERE path = ?"#)
-            .bind(path)
-            .fetch_optional(&mut *tx)
-            .await?;
+        let row_opt = sqlx::query(r#"SELECT id FROM indexes WHERE path = ?"#).bind(path).fetch_optional(&mut *tx).await?;
 
         if let Some(row) = row_opt {
             let id: i64 = row.get(0);
 
             // Delete trigrams first (due to foreign key constraint)
-            sqlx::query(r#"DELETE FROM path_trigrams WHERE path_id = ?"#)
-                .bind(id)
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query(r#"DELETE FROM path_trigrams WHERE path_id = ?"#).bind(id).execute(&mut *tx).await?;
         }
 
         // Then delete the main record
-        sqlx::query(r#"DELETE FROM indexes WHERE path = ?"#)
-            .bind(path)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query(r#"DELETE FROM indexes WHERE path = ?"#).bind(path).execute(&mut *tx).await?;
 
         // Commit the transaction
         tx.commit().await?;
@@ -212,20 +179,13 @@ impl IndexerData {
 
     pub async fn get_by_path(path: &str) -> anyhow::Result<Option<Self>> {
         let pool = create_pool().await?;
-        let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes where path = ?"#)
-            .bind(path)
-            .fetch_optional(&pool)
-            .await?;
+        let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes where path = ?"#).bind(path).fetch_optional(&pool).await?;
         Ok(result)
     }
 
     pub async fn does_table_exist() -> anyhow::Result<bool> {
         let pool = create_pool().await?;
-        let result = sqlx::query(
-            r#"SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'indexes'"#,
-        )
-        .fetch_one(&pool)
-        .await?;
+        let result = sqlx::query(r#"SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'indexes'"#).fetch_one(&pool).await?;
 
         Ok(result.get::<i32, _>(0) > 0)
     }
@@ -236,19 +196,12 @@ impl IndexerData {
         let path_str = path_str.replace('\\', "/");
         let pool = create_pool().await?;
         let query = format!("{}%", path_str);
-        let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes where path like ?"#)
-            .bind(&query)
-            .fetch_all(&pool)
-            .await?;
+        let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes where path like ?"#).bind(&query).fetch_all(&pool).await?;
         let in_dir: Vec<IndexerData> = result
             .iter()
             .filter(|entry| {
                 let entry_path = PathBuf::from(&entry.path);
-                if let Ok(path) = entry_path.strip_prefix(path) {
-                    !path.to_string_lossy().to_string().contains("/")
-                } else {
-                    false
-                }
+                if let Ok(path) = entry_path.strip_prefix(path) { !path.to_string_lossy().to_string().contains("/") } else { false }
             })
             .cloned()
             .collect();
@@ -262,10 +215,7 @@ impl IndexerData {
         let path_str = path_str.replace('\\', "/");
         let pool = create_pool().await?;
         let query = format!("{}%", path_str);
-        let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes where path like ?"#)
-            .bind(&query)
-            .fetch_all(&pool)
-            .await?;
+        let result = sqlx::query_as::<_, IndexerData>(r#"select * from indexes where path like ?"#).bind(&query).fetch_all(&pool).await?;
 
         let size: u64 = result.iter().map(|item| item.size).sum();
 
@@ -292,13 +242,10 @@ impl IndexerData {
             let exact_pattern = format!("%{}%", search_term);
 
             let field = if filename_only { "filename" } else { "path" };
-            let exact_results = sqlx::query_as::<_, IndexerData>(&format!(
-                r#"SELECT * FROM indexes WHERE {} LIKE ? LIMIT 100"#,
-                field
-            ))
-            .bind(&exact_pattern)
-            .fetch_all(&pool)
-            .await?;
+            let exact_results = sqlx::query_as::<_, IndexerData>(&format!(r#"SELECT * FROM indexes WHERE {} LIKE ? LIMIT 100"#, field))
+                .bind(&exact_pattern)
+                .fetch_all(&pool)
+                .await?;
 
             if !exact_results.is_empty() {
                 return Ok(exact_results);
@@ -365,13 +312,10 @@ impl IndexerData {
             let like_pattern = format!("%{}%", search_term);
             let field = if filename_only { "filename" } else { "path" };
 
-            let like_results = sqlx::query_as::<_, IndexerData>(&format!(
-                r#"SELECT * FROM indexes WHERE {} LIKE ? LIMIT 100"#,
-                field
-            ))
-            .bind(&like_pattern)
-            .fetch_all(&pool)
-            .await?;
+            let like_results = sqlx::query_as::<_, IndexerData>(&format!(r#"SELECT * FROM indexes WHERE {} LIKE ? LIMIT 100"#, field))
+                .bind(&like_pattern)
+                .fetch_all(&pool)
+                .await?;
 
             // Combine results, removing duplicates
             for item in like_results {
@@ -408,14 +352,10 @@ pub async fn rebuild_trigram_index() -> anyhow::Result<()> {
     let pool = create_pool().await?;
 
     // Clear existing trigrams
-    sqlx::query("DELETE FROM path_trigrams")
-        .execute(&pool)
-        .await?;
+    sqlx::query("DELETE FROM path_trigrams").execute(&pool).await?;
 
     // Get all indexes data
-    let rows = sqlx::query("SELECT id, path, filename FROM indexes")
-        .fetch_all(&pool)
-        .await?;
+    let rows = sqlx::query("SELECT id, path, filename FROM indexes").fetch_all(&pool).await?;
 
     // Process in batches of 1000 to avoid excessive memory usage
     let batch_size = 1000;
@@ -447,11 +387,7 @@ pub async fn rebuild_trigram_index() -> anyhow::Result<()> {
 
             // Insert trigrams
             for trigram in all_trigrams {
-                sqlx::query(r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#)
-                    .bind(id)
-                    .bind(&trigram)
-                    .execute(&mut *tx)
-                    .await?;
+                sqlx::query(r#"INSERT INTO path_trigrams (path_id, trigram) VALUES (?, ?)"#).bind(id).bind(&trigram).execute(&mut *tx).await?;
             }
         }
 

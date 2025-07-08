@@ -30,10 +30,7 @@ pub mod io;
 pub mod middleware;
 
 pub async fn run() -> Result<()> {
-    pretty_env_logger::env_logger::builder()
-        .filter_level(LevelFilter::Debug)
-        .format_timestamp(None)
-        .init();
+    pretty_env_logger::env_logger::builder().filter_level(LevelFilter::Debug).format_timestamp(None).init();
 
     let args = FilerArguments::parse();
     info!("Starting server...");
@@ -43,10 +40,7 @@ pub async fn run() -> Result<()> {
             let mut crashes: u8 = 0;
             loop {
                 info!("Starting Vite server in development mode...");
-                let status = start_vite_server()
-                    .expect("Failed to start vite server")
-                    .wait()
-                    .expect("Vite server crashed!");
+                let status = start_vite_server().expect("Failed to start vite server").wait().expect("Vite server crashed!");
                 if !status.success() {
                     crashes += 1;
                     error!("The vite server has crashed!");
@@ -54,9 +48,7 @@ pub async fn run() -> Result<()> {
                     break;
                 }
                 if crashes > 5 {
-                    error!(
-                        "The vite server has crashed 5 times in a row. Vite will not be restarted."
-                    );
+                    error!("The vite server has crashed 5 times in a row. Vite will not be restarted.");
                     std::process::exit(1);
                 }
                 std::thread::sleep(std::time::Duration::from_secs(5));
@@ -105,18 +97,10 @@ pub async fn run() -> Result<()> {
         App::new()
             .wrap(actix_middleware::Logger::default())
             .wrap(NetworkMiddleware) // Add our network middleware for CORS and IP filtering
-            .app_data(
-                web::JsonConfig::default()
-                    .limit(4096)
-                    .error_handler(|err, _req| {
-                        let error = json!({ "error": format!("{}", err) });
-                        actix_web::error::InternalError::from_response(
-                            err,
-                            HttpResponse::BadRequest().json(error),
-                        )
-                        .into()
-                    }),
-            )
+            .app_data(web::JsonConfig::default().limit(4096).error_handler(|err, _req| {
+                let error = json!({ "error": format!("{}", err) });
+                actix_web::error::InternalError::from_response(err, HttpResponse::BadRequest().json(error)).into()
+            }))
             .service(
                 web::scope("/api")
                     .configure(auth_endpoint::configure)
@@ -124,9 +108,7 @@ pub async fn run() -> Result<()> {
                     .configure(configuration_endpoint::configure)
                     .configure(ic_endpoint::configure)
                     // Handle unmatched API endpoints
-                    .default_service(web::to(|| async {
-                        HttpResponse::NotFound().json(json!({"error": "API endpoint not found"}))
-                    })),
+                    .default_service(web::to(|| async { HttpResponse::NotFound().json(json!({"error": "API endpoint not found"})) })),
             )
             .configure_frontend_routes()
     })
@@ -134,11 +116,7 @@ pub async fn run() -> Result<()> {
     .bind(format!("0.0.0.0:{}", port))?
     .run();
 
-    info!(
-        "Starting {} server at http://127.0.0.1:{}...",
-        if DEBUG { "development" } else { "production" },
-        port
-    );
+    info!("Starting {} server at http://127.0.0.1:{}...", if DEBUG { "development" } else { "production" }, port);
 
     let stop_result = server.await;
     debug!("Server stopped");

@@ -1,11 +1,11 @@
 use crate::middleware::cors::is_authorized_host;
 use actix_web::{
-    body::EitherBody, dev::{Service, ServiceRequest, ServiceResponse, Transform},
-    Error,
-    HttpResponse,
+    Error, HttpResponse,
+    body::EitherBody,
+    dev::{Service, ServiceRequest, ServiceResponse, Transform},
 };
 use log::warn;
-use std::future::{ready, Future, Ready};
+use std::future::{Future, Ready, ready};
 use std::pin::Pin;
 
 pub struct AuthorizedHostsCheck;
@@ -41,10 +41,7 @@ where
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<ServiceResponse<EitherBody<B>>, Error>>>>;
 
-    fn poll_ready(
-        &self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_ready(&self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         self.service.poll_ready(cx)
     }
 

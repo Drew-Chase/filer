@@ -13,7 +13,6 @@ pub struct FilesystemEntry {
     pub is_dir: bool,
 }
 
-
 #[derive(Serialize)]
 pub struct FilesystemData {
     pub parent: Option<String>,
@@ -25,23 +24,14 @@ impl TryFrom<PathBuf> for FilesystemEntry {
 
     fn try_from(path: PathBuf) -> anyhow::Result<Self> {
         let metadata = path.metadata()?;
-        let filename = path
-            .file_name()
-            .ok_or(anyhow!("Unable to get filename"))?
-            .to_str()
-            .ok_or(anyhow!("Unable to convert to str"))?
-            .to_string();
+        let filename = path.file_name().ok_or(anyhow!("Unable to get filename"))?.to_str().ok_or(anyhow!("Unable to convert to str"))?.to_string();
 
         // Get path string and ensure it's properly formatted for the platform
         let path_str = path.to_str().ok_or(anyhow!("Unable to convert to str"))?;
 
         // On Unix systems, ensure the path starts with "/"
         #[cfg(unix)]
-        let path = if !path_str.starts_with("/") {
-            format!("/{}", path_str)
-        } else {
-            path_str.to_string()
-        };
+        let path = if !path_str.starts_with("/") { format!("/{}", path_str) } else { path_str.to_string() };
 
         // On Windows, use the path as is
         #[cfg(windows)]
@@ -49,14 +39,7 @@ impl TryFrom<PathBuf> for FilesystemEntry {
 
         let created = metadata.created().ok();
         let last_modified = metadata.modified().ok();
-        Ok(FilesystemEntry {
-            filename,
-            path,
-            created,
-            last_modified,
-            size: metadata.len(),
-            is_dir: metadata.is_dir(),
-        })
+        Ok(FilesystemEntry { filename, path, created, last_modified, size: metadata.len(), is_dir: metadata.is_dir() })
     }
 }
 
@@ -85,11 +68,7 @@ impl TryFrom<PathBuf> for FilesystemData {
         } else {
             // For non-empty paths on Unix, ensure they start with "/"
             let path_str = path.to_str().unwrap_or("");
-            if !path_str.starts_with("/") {
-                PathBuf::from("/").join(path)
-            } else {
-                path
-            }
+            if !path_str.starts_with("/") { PathBuf::from("/").join(path) } else { path }
         };
 
         #[cfg(not(windows))]
@@ -111,7 +90,7 @@ impl TryFrom<PathBuf> for FilesystemData {
 
         // Format parent path according to platform
         let parent = path.parent().map(|p| {
-            let parent_str = p.to_str().unwrap_or("");
+            let parent_str = p.to_str().unwrap_or("/");
             #[cfg(unix)]
             {
                 // On Unix, ensure parent path starts with "/"

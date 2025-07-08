@@ -76,10 +76,7 @@ pub fn update_port_forwarding(port: u16) -> Result<(), String> {
     };
 
     // Try to discover the default gateway and set up port forwarding
-    match igd::search_gateway(igd::SearchOptions {
-        timeout: Some(Duration::from_secs(3)),
-        ..Default::default()
-    }) {
+    match igd::search_gateway(igd::SearchOptions { timeout: Some(Duration::from_secs(3)), ..Default::default() }) {
         Ok(gateway) => {
             // Forward the port
             let socket = SocketAddrV4::new(local_ip, port);
@@ -94,10 +91,7 @@ pub fn update_port_forwarding(port: u16) -> Result<(), String> {
                     info!("Successfully forwarded port {} using UPnP", port);
                     // Store the port for later cleanup
                     let mut state = get_upnp_state().lock().unwrap();
-                    *state = Some(UPnPState {
-                        port,
-                        is_forwarded: true,
-                    });
+                    *state = Some(UPnPState { port, is_forwarded: true });
                     Ok(())
                 }
                 Err(e) => {
@@ -123,20 +117,15 @@ fn remove_port_forwarding() {
         if state.is_forwarded {
             debug!("Removing port forwarding for port {}", state.port);
 
-            match igd::search_gateway(igd::SearchOptions {
-                timeout: Some(Duration::from_secs(3)),
-                ..Default::default()
-            }) {
-                Ok(gateway) => {
-                    match gateway.remove_port(PortMappingProtocol::TCP, state.port) {
-                        Ok(_) => {
-                            info!("Successfully removed port forwarding for port {}", state.port);
-                        }
-                        Err(e) => {
-                            warn!("Failed to remove port forwarding for port {}: {}", state.port, e);
-                        }
+            match igd::search_gateway(igd::SearchOptions { timeout: Some(Duration::from_secs(3)), ..Default::default() }) {
+                Ok(gateway) => match gateway.remove_port(PortMappingProtocol::TCP, state.port) {
+                    Ok(_) => {
+                        info!("Successfully removed port forwarding for port {}", state.port);
                     }
-                }
+                    Err(e) => {
+                        warn!("Failed to remove port forwarding for port {}: {}", state.port, e);
+                    }
+                },
                 Err(e) => {
                     warn!("Failed to discover UPnP gateway for port removal: {}", e);
                 }

@@ -1,7 +1,7 @@
 use crate::DEBUG;
 use actix_files::file_extension_to_mime;
 use actix_web::error::ErrorInternalServerError;
-use actix_web::{App, Error, HttpRequest, HttpResponse, Responder, get, web, Scope};
+use actix_web::{App, Error, HttpRequest, HttpResponse, Responder, Scope, get, web};
 use include_dir::{Dir, include_dir};
 use vite_actix::vite_app_factory::ViteAppFactory;
 
@@ -36,11 +36,7 @@ pub async fn index(_req: HttpRequest) -> anyhow::Result<impl Responder, Error> {
 async fn assets(file: web::Path<String>) -> impl Responder {
     if let Some(file) = WWWROOT.get_file(format!("assets/{}", file.as_str())) {
         let body = file.contents();
-        return Ok(HttpResponse::Ok()
-            .content_type(file_extension_to_mime(
-                file.path().extension().unwrap().to_str().unwrap(),
-            ))
-            .body(body));
+        return Ok(HttpResponse::Ok().content_type(file_extension_to_mime(file.path().extension().unwrap().to_str().unwrap())).body(body));
     }
     Err(ErrorInternalServerError(format!("Failed to find {}", file)))
 }
@@ -51,17 +47,11 @@ pub trait AssetsAppConfig {
 
 impl<T> AssetsAppConfig for App<T>
 where
-    T: actix_web::dev::ServiceFactory<
-            actix_web::dev::ServiceRequest,
-            Config = (),
-            Error = Error,
-            InitError = (),
-        >,
+    T: actix_web::dev::ServiceFactory<actix_web::dev::ServiceRequest, Config = (), Error = Error, InitError = ()>,
 {
     fn configure_frontend_routes(self) -> Self {
         if !DEBUG {
-            self.default_service(web::route().to(index))
-                .service(web::scope("/assets/{file:.*}").service(assets))
+            self.default_service(web::route().to(index)).service(web::scope("/assets/{file:.*}").service(assets))
         } else {
             self.configure_vite()
         }
@@ -70,17 +60,11 @@ where
 
 impl<T> AssetsAppConfig for Scope<T>
 where
-    T: actix_web::dev::ServiceFactory<
-            actix_web::dev::ServiceRequest,
-            Config = (),
-            Error = Error,
-            InitError = (),
-        >,
+    T: actix_web::dev::ServiceFactory<actix_web::dev::ServiceRequest, Config = (), Error = Error, InitError = ()>,
 {
     fn configure_frontend_routes(self) -> Self {
         if !DEBUG {
-            self.default_service(web::route().to(index))
-                .service(web::scope("/assets/{file:.*}").service(assets))
+            self.default_service(web::route().to(index)).service(web::scope("/assets/{file:.*}").service(assets))
         } else {
             self.configure_vite()
         }

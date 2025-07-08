@@ -1,8 +1,5 @@
-use actix_web::{
-    http::header,
-    HttpRequest, HttpResponse,
-};
 use crate::configuration::configuration_data::Configuration;
+use actix_web::{HttpRequest, HttpResponse, http::header};
 use std::str::FromStr;
 
 // Simple function to add CORS headers to a response based on configuration
@@ -11,22 +8,10 @@ pub fn add_cors_headers(response: &mut HttpResponse) {
 
     if config.cors_enabled {
         // If CORS is enabled, add permissive CORS headers
-        response.headers_mut().insert(
-            header::ACCESS_CONTROL_ALLOW_ORIGIN,
-            header::HeaderValue::from_static("*"),
-        );
-        response.headers_mut().insert(
-            header::ACCESS_CONTROL_ALLOW_METHODS,
-            header::HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"),
-        );
-        response.headers_mut().insert(
-            header::ACCESS_CONTROL_ALLOW_HEADERS,
-            header::HeaderValue::from_static("Content-Type, Authorization, Accept"),
-        );
-        response.headers_mut().insert(
-            header::ACCESS_CONTROL_MAX_AGE,
-            header::HeaderValue::from_static("3600"),
-        );
+        response.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, header::HeaderValue::from_static("*"));
+        response.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_METHODS, header::HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"));
+        response.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_HEADERS, header::HeaderValue::from_static("Content-Type, Authorization, Accept"));
+        response.headers_mut().insert(header::ACCESS_CONTROL_MAX_AGE, header::HeaderValue::from_static("3600"));
     }
 }
 
@@ -54,10 +39,7 @@ pub fn is_authorized_host(req: &HttpRequest) -> bool {
         }
 
         // Try to parse as IP address for more precise comparison
-        if let (Ok(host_ip), Ok(client_addr)) = (
-            std::net::IpAddr::from_str(host),
-            std::net::IpAddr::from_str(client_ip)
-        ) {
+        if let (Ok(host_ip), Ok(client_addr)) = (std::net::IpAddr::from_str(host), std::net::IpAddr::from_str(client_ip)) {
             return host_ip == client_addr;
         }
 

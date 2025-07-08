@@ -1,7 +1,7 @@
 use crate::auth::auth_data::{CreateUserRequest, LoginRequest, LoginResponse, UpdateUserRequest, User};
 use crate::auth::permission_flags::PermissionFlags;
 use crate::helpers::http_error::Result;
-use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse};
+use actix_web::{HttpRequest, HttpResponse, delete, get, post, put, web};
 use serde_json::json;
 
 pub(crate) static TOKEN_COOKIE_KEY: &str = "tok_Zs7FdOqOZkeIK1DfQulRJg";
@@ -16,12 +16,7 @@ async fn create_user(user_data: web::Json<CreateUserRequest>) -> Result<HttpResp
         })));
     }
 
-    let user = User {
-        id: 0,
-        username: user_data.username.clone(),
-        password: user_data.password.clone(),
-        permissions,
-    };
+    let user = User { id: 0, username: user_data.username.clone(), password: user_data.password.clone(), permissions };
 
     user.create().await?;
 
@@ -50,10 +45,7 @@ async fn get_user(path: web::Path<String>) -> Result<HttpResponse> {
 }
 
 #[put("/users/{username}")]
-async fn update_user(
-    path: web::Path<String>,
-    user_data: web::Json<UpdateUserRequest>,
-) -> Result<HttpResponse> {
+async fn update_user(path: web::Path<String>, user_data: web::Json<UpdateUserRequest>) -> Result<HttpResponse> {
     let username = path.into_inner();
 
     let mut user = match User::get_by_username(&username).await? {
@@ -150,10 +142,7 @@ async fn login(req: HttpRequest, login_data: web::Json<LoginRequest>) -> Result<
             );
         }
 
-        Ok(response.json(LoginResponse {
-            token,
-            username: user.username,
-        }))
+        Ok(response.json(LoginResponse { token, username: user.username }))
     } else {
         Ok(HttpResponse::Unauthorized().json(json!({
             "error": "User not found"
@@ -166,11 +155,7 @@ async fn validate_token(req: HttpRequest) -> Result<HttpResponse> {
     // Try to get the token from cookies
     if let Some(token_cookie) = req.cookie(TOKEN_COOKIE_KEY) {
         let token = token_cookie.value().to_string();
-        let ip = req
-            .connection_info()
-            .peer_addr()
-            .unwrap_or("unknown")
-            .to_string();
+        let ip = req.connection_info().peer_addr().unwrap_or("unknown").to_string();
         let host = req.connection_info().host().to_string();
 
         // Loop through all users to find one that validates with this token

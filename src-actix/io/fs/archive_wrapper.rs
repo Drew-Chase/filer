@@ -1,11 +1,11 @@
 use actix_web_lab::sse;
 use actix_web_lab::sse::Event;
 use anyhow::Result;
+use log::{debug, error, info, trace, warn};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use tokio::fs;
-use log::{debug, error, info, trace, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::fs;
 
 pub async fn archive(
     archive_path: impl AsRef<Path>,
@@ -17,9 +17,7 @@ pub async fn archive(
     info!("Created archive file at: {}", archive_path.as_ref().display());
     let file = file.into_std().await;
     let mut archive = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Stored)
-        .unix_permissions(0o755);
+    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored).unix_permissions(0o755);
     debug!("Using zip options: compression=Stored, permissions=0o755");
     // Calculate total bytes to process
     let mut total_bytes: u64 = 0;
@@ -49,32 +47,21 @@ pub async fn archive(
     }
     info!("Total bytes to process: {}", total_bytes);
     // Send initial progress
-    let _ = sender
-        .send(Event::from(sse::Data::new(format!(
-            "{{ \"progress\": {:.1} }}",
-            0.0
-        ))))
-        .await;
+    let _ = sender.send(Event::from(sse::Data::new(format!("{{ \"progress\": {:.1} }}", 0.0)))).await;
     debug!("Sent initial progress update (0.0%)");
     // Process the files and update progress
     for entry in entries {
         // Check if operation was cancelled
         if cancelled.load(Ordering::Relaxed) {
             info!("Archive operation cancelled by user");
-            let _ = sender
-                .send(Event::from(sse::Data::new(
-                    "{ \"progress\": 0, \"status\": \"cancelled\" }",
-                )))
-                .await;
+            let _ = sender.send(Event::from(sse::Data::new("{ \"progress\": 0, \"status\": \"cancelled\" }"))).await;
             return Ok(());
         }
         if entry.is_dir() {
-            let dir_name = entry
-                .file_name()
-                .ok_or_else(|| {
-                    error!("Could not get directory name for: {}", entry.display());
-                    anyhow::anyhow!("Invalid directory name")
-                })?;
+            let dir_name = entry.file_name().ok_or_else(|| {
+                error!("Could not get directory name for: {}", entry.display());
+                anyhow::anyhow!("Invalid directory name")
+            })?;
             let dir_path = dir_name.to_string_lossy();
             info!("Processing directory: {}", dir_path);
             archive.add_directory(&*dir_path, options)?;
@@ -114,11 +101,7 @@ pub async fn archive(
                         // Check if operation was cancelled
                         if cancelled.load(Ordering::Relaxed) {
                             info!("Archive operation cancelled by user while processing {}", path.display());
-                            let _ = sender
-                                .send(Event::from(sse::Data::new(
-                                    "{ \"progress\": 0, \"status\": \"cancelled\" }",
-                                )))
-                                .await;
+                            let _ = sender.send(Event::from(sse::Data::new("{ \"progress\": 0, \"status\": \"cancelled\" }"))).await;
                             return Ok(());
                         }
 
@@ -136,17 +119,8 @@ pub async fn archive(
                         // Send progress update with rate limiting (max once per 100ms)
                         let now = std::time::Instant::now();
                         if now.duration_since(last_progress_update).as_millis() > 100 {
-                            let progress = if total_bytes > 0 {
-                                (processed_bytes as f32 / total_bytes as f32) * 100.0
-                            } else {
-                                0.0
-                            };
-                            let _ = sender
-                                .send(Event::from(sse::Data::new(format!(
-                                    "{{ \"progress\": {:.1} }}",
-                                    progress
-                                ))))
-                                .await;
+                            let progress = if total_bytes > 0 { (processed_bytes as f32 / total_bytes as f32) * 100.0 } else { 0.0 };
+                            let _ = sender.send(Event::from(sse::Data::new(format!("{{ \"progress\": {:.1} }}", progress)))).await;
                             debug!("Progress update: {:.1}%", progress);
                             last_progress_update = now;
                         }
@@ -158,12 +132,10 @@ pub async fn archive(
                 }
             }
         } else {
-            let rel_path = entry
-                .file_name()
-                .ok_or_else(|| {
-                    error!("Could not get file name for: {}", entry.display());
-                    anyhow::anyhow!("Invalid file name")
-                })?;
+            let rel_path = entry.file_name().ok_or_else(|| {
+                error!("Could not get file name for: {}", entry.display());
+                anyhow::anyhow!("Invalid file name")
+            })?;
             let archive_path = rel_path.to_string_lossy();
             info!("Adding file to archive: {} -> {}", entry.display(), archive_path);
             archive.start_file(archive_path, options)?;
@@ -183,11 +155,7 @@ pub async fn archive(
                 // Check if operation was cancelled
                 if cancelled.load(Ordering::Relaxed) {
                     info!("Archive operation cancelled by user while processing {}", entry.display());
-                    let _ = sender
-                        .send(Event::from(sse::Data::new(
-                            "{ \"progress\": 0, \"status\": \"cancelled\" }",
-                        )))
-                        .await;
+                    let _ = sender.send(Event::from(sse::Data::new("{ \"progress\": 0, \"status\": \"cancelled\" }"))).await;
                     return Ok(());
                 }
 
@@ -205,17 +173,8 @@ pub async fn archive(
                 // Send progress update with rate limiting (max once per 100ms)
                 let now = std::time::Instant::now();
                 if now.duration_since(last_progress_update).as_millis() > 100 {
-                    let progress = if total_bytes > 0 {
-                        (processed_bytes as f32 / total_bytes as f32) * 100.0
-                    } else {
-                        0.0
-                    };
-                    let _ = sender
-                        .send(Event::from(sse::Data::new(format!(
-                            "{{ \"progress\": {:.1} }}",
-                            progress
-                        ))))
-                        .await;
+                    let progress = if total_bytes > 0 { (processed_bytes as f32 / total_bytes as f32) * 100.0 } else { 0.0 };
+                    let _ = sender.send(Event::from(sse::Data::new(format!("{{ \"progress\": {:.1} }}", progress)))).await;
                     debug!("Progress update: {:.1}%", progress);
                     last_progress_update = now;
                 }
@@ -224,11 +183,7 @@ pub async fn archive(
         }
     }
     // Send the completion message
-    let _ = sender
-        .send(Event::from(sse::Data::new(
-            "{ \"progress\": 100.0, \"status\": \"complete\" }",
-        )))
-        .await;
+    let _ = sender.send(Event::from(sse::Data::new("{ \"progress\": 100.0, \"status\": \"complete\" }"))).await;
     info!("Archive creation complete. Total bytes processed: {}", processed_bytes);
     archive.finish()?;
     info!("Archive finalized successfully at: {}", archive_path.as_ref().display());

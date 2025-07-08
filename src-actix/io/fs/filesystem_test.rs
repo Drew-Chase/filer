@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests {
     use crate::io::fs::filesystem_data::FilesystemEntry;
-    use std::time::SystemTime;
+    use std::fs::File;
     use std::io::{Cursor, Read, Write};
     use std::path::{Path, PathBuf};
-    use std::fs::File;
+    use std::time::SystemTime;
     use tempfile::tempdir;
-    use zip::{ZipWriter, CompressionMethod};
-    use zip::write::SimpleFileOptions;
     use walkdir::WalkDir;
+    use zip::write::SimpleFileOptions;
+    use zip::{CompressionMethod, ZipWriter};
 
     #[test]
     fn test_filesystem_entry_creation() {
@@ -53,8 +53,7 @@ mod tests {
         // Create an in-memory zip archive
         let in_memory_buffer = Cursor::new(Vec::new());
         let mut zip = ZipWriter::new(in_memory_buffer);
-        let options = SimpleFileOptions::default()
-            .compression_method(CompressionMethod::Deflated);
+        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
         // Add the test file to the zip
         let relative_path = "test_file.txt";
@@ -63,7 +62,9 @@ mod tests {
         let mut buffer = vec![0; 1024];
         loop {
             let bytes_read = file.read(&mut buffer).expect("Failed to read file");
-            if bytes_read == 0 { break; }
+            if bytes_read == 0 {
+                break;
+            }
             zip.write_all(&buffer[..bytes_read]).expect("Failed to write to zip");
         }
 
@@ -77,7 +78,9 @@ mod tests {
         let mut subdir_file = File::open(&subdir_file_path).expect("Failed to open subdir file");
         loop {
             let bytes_read = subdir_file.read(&mut buffer).expect("Failed to read subdir file");
-            if bytes_read == 0 { break; }
+            if bytes_read == 0 {
+                break;
+            }
             zip.write_all(&buffer[..bytes_read]).expect("Failed to write subdir file to zip");
         }
 
@@ -150,10 +153,7 @@ mod tests {
         csv_file.write_all(b"a,b,c\n1,2,3").expect("Failed to write to test.csv");
 
         // Now simulate the multi-path zip creation process
-        let paths = vec![
-            test_dir.to_string_lossy().to_string(),
-            csv_path.to_string_lossy().to_string(),
-        ];
+        let paths = vec![test_dir.to_string_lossy().to_string(), csv_path.to_string_lossy().to_string()];
 
         println!("Paths to process: {:?}", paths);
 
@@ -167,27 +167,16 @@ mod tests {
 
             // Get the parent directory of the first path
             let first_path = &path_bufs[0];
-            let mut common_parent = if first_path.is_file() {
-                first_path.parent().unwrap_or(Path::new("")).to_path_buf()
-            } else {
-                first_path.clone()
-            };
+            let mut common_parent =
+                if first_path.is_file() { first_path.parent().unwrap_or(Path::new("")).to_path_buf() } else { first_path.clone() };
 
             // Find the common parent directory
             for path in &path_bufs[1..] {
-                let path_parent = if path.is_file() {
-                    path.parent().unwrap_or(Path::new("")).to_path_buf()
-                } else {
-                    path.clone()
-                };
+                let path_parent = if path.is_file() { path.parent().unwrap_or(Path::new("")).to_path_buf() } else { path.clone() };
 
                 // Find the common parent by comparing components
-                let common_components: Vec<_> = common_parent
-                    .components()
-                    .zip(path_parent.components())
-                    .take_while(|(a, b)| a == b)
-                    .map(|(a, _)| a)
-                    .collect();
+                let common_components: Vec<_> =
+                    common_parent.components().zip(path_parent.components()).take_while(|(a, b)| a == b).map(|(a, _)| a).collect();
 
                 if common_components.is_empty() {
                     // No common parent, use the drive root
@@ -220,8 +209,7 @@ mod tests {
         // Create an in-memory zip archive
         let in_memory_buffer = Cursor::new(Vec::new());
         let mut zip = ZipWriter::new(in_memory_buffer);
-        let options = SimpleFileOptions::default()
-            .compression_method(CompressionMethod::Deflated);
+        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
         // Use the common base path we found earlier
         let base_path = PathBuf::from(&common_base);
@@ -266,11 +254,7 @@ mod tests {
 
                         if entry_path.is_dir() {
                             // Add directory entry to the zip
-                            let dir_path = if relative_path.is_empty() {
-                                String::from("")
-                            } else {
-                                format!("{}/", relative_path)
-                            };
+                            let dir_path = if relative_path.is_empty() { String::from("") } else { format!("{}/", relative_path) };
 
                             // Check if this directory has already been added
                             if !added_directories.contains(&dir_path) {
@@ -311,7 +295,9 @@ mod tests {
                             loop {
                                 let bytes_read = file.read(&mut read_buffer).expect("Failed to read file");
 
-                                if bytes_read == 0 { break; }
+                                if bytes_read == 0 {
+                                    break;
+                                }
 
                                 zip.write_all(&read_buffer[..bytes_read]).expect("Failed to write to zip");
 
@@ -367,7 +353,9 @@ mod tests {
                     loop {
                         let bytes_read = file.read(&mut read_buffer).expect("Failed to read file");
 
-                        if bytes_read == 0 { break; }
+                        if bytes_read == 0 {
+                            break;
+                        }
 
                         zip.write_all(&read_buffer[..bytes_read]).expect("Failed to write to zip");
 
@@ -430,13 +418,13 @@ mod tests {
 
 #[cfg(test)]
 mod endpoint_tests {
-    use actix_web::{test, web, App, http::header};
-    use crate::io::fs::filesystem_endpoint;
     use crate::configuration::configuration_data::Configuration;
-    use tempfile::tempdir;
+    use crate::io::fs::filesystem_endpoint;
+    use actix_web::{App, http::header, test, web};
     use std::fs::File;
     use std::io::{Read, Write};
     use std::path::PathBuf;
+    use tempfile::tempdir;
 
     // Test for get_filesystem_entries endpoint
     #[actix_web::test]
@@ -452,15 +440,9 @@ mod endpoint_tests {
 
         // Create a test app
         let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::get_filesystem_entries)
-                        )
-                )
-        ).await;
+            App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::get_filesystem_entries))),
+        )
+        .await;
 
         // Create a test request
         let req = test::TestRequest::get()
@@ -480,9 +462,7 @@ mod endpoint_tests {
         let entries = json.get("entries").unwrap().as_array().unwrap();
 
         // Check that our test file is in the entries
-        let found_test_file = entries.iter().any(|entry| {
-            entry.get("filename").unwrap().as_str().unwrap() == "test_file.txt"
-        });
+        let found_test_file = entries.iter().any(|entry| entry.get("filename").unwrap().as_str().unwrap() == "test_file.txt");
 
         assert!(found_test_file, "Test file not found in response");
     }
@@ -501,16 +481,7 @@ mod endpoint_tests {
         test_file.write_all(test_content).expect("Failed to write to test file");
 
         // Create a test app
-        let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::download)
-                        )
-                )
-        ).await;
+        let app = test::init_service(App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::download)))).await;
 
         // Create a test request
         let req = test::TestRequest::get()
@@ -526,10 +497,7 @@ mod endpoint_tests {
         assert!(resp.status().is_success());
 
         // Check the content type
-        assert_eq!(
-            resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap(),
-            "application/octet-stream"
-        );
+        assert_eq!(resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap(), "application/octet-stream");
 
         // Check that the Content-Disposition header is set correctly
         let content_disposition = resp.headers().get(header::CONTENT_DISPOSITION).unwrap().to_str().unwrap();
@@ -567,16 +535,7 @@ mod endpoint_tests {
         subdir_file.write_all(subdir_content).expect("Failed to write to subdir file");
 
         // Create a test app
-        let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::download)
-                        )
-                )
-        ).await;
+        let app = test::init_service(App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::download)))).await;
 
         // Create a test request
         let req = test::TestRequest::get()
@@ -592,10 +551,7 @@ mod endpoint_tests {
         assert!(resp.status().is_success());
 
         // Check the content type
-        assert_eq!(
-            resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap(),
-            "application/octet-stream"
-        );
+        assert_eq!(resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap(), "application/octet-stream");
 
         // Check that the Content-Disposition header is set correctly
         let content_disposition = resp.headers().get(header::CONTENT_DISPOSITION).unwrap().to_str().unwrap();
@@ -615,9 +571,7 @@ mod endpoint_tests {
         assert!(zip_archive.len() >= 3, "Zip should contain at least 3 entries (root dir, file, subdir)");
 
         // Check the contents of the files in the zip
-        let file_names: Vec<String> = (0..zip_archive.len())
-            .map(|i| zip_archive.by_index(i).unwrap().name().to_string())
-            .collect();
+        let file_names: Vec<String> = (0..zip_archive.len()).map(|i| zip_archive.by_index(i).unwrap().name().to_string()).collect();
 
         // Check for the test file
         let test_file_found = file_names.iter().any(|name| name.ends_with("test_file.txt"));
@@ -648,22 +602,10 @@ mod endpoint_tests {
         test_file2.write_all(test_content2).expect("Failed to write to test file 2");
 
         // Create a test app
-        let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::download)
-                        )
-                )
-        ).await;
+        let app = test::init_service(App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::download)))).await;
 
         // Create paths array for X-Multiple-Paths header
-        let paths = vec![
-            test_file1_path.to_string_lossy().to_string(),
-            test_file2_path.to_string_lossy().to_string(),
-        ];
+        let paths = vec![test_file1_path.to_string_lossy().to_string(), test_file2_path.to_string_lossy().to_string()];
         let paths_json = serde_json::to_string(&paths).expect("Failed to serialize paths to JSON");
 
         // Create a test request
@@ -680,10 +622,7 @@ mod endpoint_tests {
         assert!(resp.status().is_success());
 
         // Check the content type
-        assert_eq!(
-            resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap(),
-            "application/octet-stream"
-        );
+        assert_eq!(resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap(), "application/octet-stream");
 
         // Check that the Content-Disposition header is set correctly
         let content_disposition = resp.headers().get(header::CONTENT_DISPOSITION).unwrap().to_str().unwrap();
@@ -704,9 +643,7 @@ mod endpoint_tests {
         assert_eq!(zip_archive.len(), 2, "Zip should contain 2 entries (the two files)");
 
         // Check the contents of the files in the zip
-        let file_names: Vec<String> = (0..zip_archive.len())
-            .map(|i| zip_archive.by_index(i).unwrap().name().to_string())
-            .collect();
+        let file_names: Vec<String> = (0..zip_archive.len()).map(|i| zip_archive.by_index(i).unwrap().name().to_string()).collect();
 
         // Check for the test files
         let test_file1_found = file_names.iter().any(|name| name.ends_with("test_file1.txt"));
@@ -716,7 +653,8 @@ mod endpoint_tests {
 
         // Verify the content of the files
         {
-            let mut file = zip_archive.by_name(file_names.iter().find(|name| name.ends_with("test_file1.txt")).unwrap())
+            let mut file = zip_archive
+                .by_name(file_names.iter().find(|name| name.ends_with("test_file1.txt")).unwrap())
                 .expect("Failed to open test_file1.txt in zip");
             let mut content = Vec::new();
             file.read_to_end(&mut content).expect("Failed to read test_file1.txt from zip");
@@ -724,7 +662,8 @@ mod endpoint_tests {
         }
 
         {
-            let mut file = zip_archive.by_name(file_names.iter().find(|name| name.ends_with("test_file2.txt")).unwrap())
+            let mut file = zip_archive
+                .by_name(file_names.iter().find(|name| name.ends_with("test_file2.txt")).unwrap())
                 .expect("Failed to open test_file2.txt in zip");
             let mut content = Vec::new();
             file.read_to_end(&mut content).expect("Failed to read test_file2.txt from zip");
@@ -736,29 +675,16 @@ mod endpoint_tests {
     #[actix_web::test]
     async fn test_search() {
         // Create a test app
-        let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::search)
-                        )
-                )
-        ).await;
+        let app = test::init_service(App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::search)))).await;
 
         // Test with a valid query
-        let req = test::TestRequest::get()
-            .uri("/api/fs/search?q=test")
-            .to_request();
+        let req = test::TestRequest::get().uri("/api/fs/search?q=test").to_request();
 
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
 
         // Test with an invalid query (missing q parameter)
-        let req = test::TestRequest::get()
-            .uri("/api/fs/search")
-            .to_request();
+        let req = test::TestRequest::get().uri("/api/fs/search").to_request();
 
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status().as_u16(), 400); // Bad Request
@@ -778,15 +704,9 @@ mod endpoint_tests {
 
         // Create a test app
         let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::delete_filesystem_entry)
-                        )
-                )
-        ).await;
+            App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::delete_filesystem_entry))),
+        )
+        .await;
 
         // Create a test request
         let req = test::TestRequest::delete()
@@ -822,16 +742,9 @@ mod endpoint_tests {
         let dest_file_path = temp_path.join("test_file_copy.txt");
 
         // Create a test app
-        let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::copy_filesystem_entry)
-                        )
-                )
-        ).await;
+        let app =
+            test::init_service(App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::copy_filesystem_entry))))
+                .await;
 
         // Create a test request
         let req = test::TestRequest::post()
@@ -859,22 +772,12 @@ mod endpoint_tests {
     #[actix_web::test]
     async fn test_upload_progress() {
         // Create a test app
-        let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::upload_progress)
-                        )
-                )
-        ).await;
+        let app =
+            test::init_service(App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::upload_progress)))).await;
 
         // Create a test request with a test upload ID
         let upload_id = "test-upload-id";
-        let req = test::TestRequest::get()
-            .uri(&format!("/api/fs/upload/progress/{}", upload_id))
-            .to_request();
+        let req = test::TestRequest::get().uri(&format!("/api/fs/upload/progress/{}", upload_id)).to_request();
 
         // Send the request and get the response
         let resp = test::call_service(&app, req).await;
@@ -883,10 +786,7 @@ mod endpoint_tests {
         assert!(resp.status().is_success());
 
         // Check that the content type is text/event-stream for SSE
-        assert_eq!(
-            resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap(),
-            "text/event-stream"
-        );
+        assert_eq!(resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap(), "text/event-stream");
     }
 
     // Test for upload endpoint
@@ -900,16 +800,7 @@ mod endpoint_tests {
         let upload_path = temp_path.join("uploaded_file.txt");
 
         // Create a test app
-        let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::upload)
-                        )
-                )
-        ).await;
+        let app = test::init_service(App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::upload)))).await;
 
         // Create test content
         let test_content = b"This is test content for upload";
@@ -959,14 +850,9 @@ mod endpoint_tests {
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(config.clone()))
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::get_filesystem_entries)
-                        )
-                )
-        ).await;
+                .service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::get_filesystem_entries))),
+        )
+        .await;
 
         // Create a test request with path "/"
         let req = test::TestRequest::get()
@@ -986,9 +872,7 @@ mod endpoint_tests {
         let entries = json.get("entries").unwrap().as_array().unwrap();
 
         // Check that our test file is in the entries
-        let found_test_file = entries.iter().any(|entry| {
-            entry.get("filename").unwrap().as_str().unwrap() == "test_file.txt"
-        });
+        let found_test_file = entries.iter().any(|entry| entry.get("filename").unwrap().as_str().unwrap() == "test_file.txt");
 
         assert!(found_test_file, "Test file not found in response");
 
@@ -1014,16 +898,9 @@ mod endpoint_tests {
         let dest_file_path = temp_path.join("test_file_moved.txt");
 
         // Create a test app
-        let app = test::init_service(
-            App::new()
-                .service(
-                    web::scope("/api")
-                        .service(
-                            web::scope("/fs")
-                                .service(filesystem_endpoint::move_filesystem_entry)
-                        )
-                )
-        ).await;
+        let app =
+            test::init_service(App::new().service(web::scope("/api").service(web::scope("/fs").service(filesystem_endpoint::move_filesystem_entry))))
+                .await;
 
         // Create a test request
         let req = test::TestRequest::post()

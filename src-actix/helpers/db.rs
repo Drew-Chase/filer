@@ -10,9 +10,6 @@ pub async fn create_pool() -> anyhow::Result<SqlitePool> {
         .journal_mode(SqliteJournalMode::Wal)
         .log_statements(LevelFilter::Trace)
         .synchronous(Normal);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(10)
-        .connect_with(options)
-        .await?;
+    let pool = SqlitePoolOptions::new().max_connections(10).connect_with(options).await?;
     Ok(pool)
 }

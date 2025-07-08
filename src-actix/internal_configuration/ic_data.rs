@@ -16,18 +16,15 @@ impl InternalConfiguration {
         Self::from_hash_map(map)
     }
 
-    pub async fn set_has_done_first_run_setup(&mut self, value: bool)->Result<()> {
+    pub async fn set_has_done_first_run_setup(&mut self, value: bool) -> Result<()> {
         self.has_done_first_run_setup = value;
-	    ic_db::set("has_done_first_run_setup", &value.to_string()).await?;
-	    Ok(())
+        ic_db::set("has_done_first_run_setup", &value.to_string()).await?;
+        Ok(())
     }
 
     fn to_hash_map(&self) -> std::collections::HashMap<String, String> {
         let mut map = std::collections::HashMap::new();
-        map.insert(
-            "has_done_first_run_setup".to_string(),
-            self.has_done_first_run_setup.to_string(),
-        );
+        map.insert("has_done_first_run_setup".to_string(), self.has_done_first_run_setup.to_string());
         map
     }
     fn from_hash_map(map: std::collections::HashMap<String, String>) -> Self {

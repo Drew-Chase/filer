@@ -22,40 +22,27 @@ pub enum Error {
 
     /// File not found error
     #[error("File not found: {path}")]
-    NotFound {
-        path: String,
-    },
+    NotFound { path: String },
 
     /// Permission denied error
     #[error("Permission denied: {path}")]
-    PermissionDenied {
-        path: String,
-    },
+    PermissionDenied { path: String },
 
     /// Invalid input error
     #[error("Invalid input: {message}")]
-    InvalidInput {
-        message: String,
-    },
+    InvalidInput { message: String },
 
     /// Authentication error
     #[error("Authentication error: {message}")]
-    AuthenticationError {
-        message: String,
-    },
+    AuthenticationError { message: String },
 
     /// Authorization error
     #[error("Authorization error: {message}")]
-    AuthorizationError {
-        message: String,
-    },
+    AuthorizationError { message: String },
 
     /// Validation error
     #[error("Validation error: {message}")]
-    ValidationError {
-        message: String,
-        field: Option<String>,
-    },
+    ValidationError { message: String, field: Option<String> },
 
     /// Rate limit exceeded error
     #[error("Rate limit exceeded")]
@@ -98,21 +85,21 @@ impl ResponseError for Error {
                     "message": error_message,
                     "path": path
                 })
-            },
+            }
             Self::PermissionDenied { path } => {
                 json!({
                     "error": "permission_denied",
                     "message": error_message,
                     "path": path
                 })
-            },
+            }
             Self::ValidationError { message, field } => {
                 json!({
                     "error": "validation_error",
                     "message": message,
                     "field": field
                 })
-            },
+            }
             _ => {
                 json!({
                     "error": status.canonical_reason().unwrap_or("error"),
@@ -129,17 +116,9 @@ impl ResponseError for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         match err.kind() {
-            io::ErrorKind::NotFound => Self::NotFound { 
-                path: err.to_string() 
-            },
-            io::ErrorKind::PermissionDenied => Self::PermissionDenied { 
-                path: err.to_string() 
-            },
-            _ => Self::FilesystemError { 
-                message: err.to_string(), 
-                source: Some(err),
-                path: None,
-            }
+            io::ErrorKind::NotFound => Self::NotFound { path: err.to_string() },
+            io::ErrorKind::PermissionDenied => Self::PermissionDenied { path: err.to_string() },
+            _ => Self::FilesystemError { message: err.to_string(), source: Some(err), path: None },
         }
     }
 }
@@ -147,55 +126,35 @@ impl From<io::Error> for Error {
 // Helper functions to create specific errors
 impl Error {
     pub fn filesystem_error<S: Into<String>>(message: S, source: Option<io::Error>, path: Option<PathBuf>) -> Self {
-        Self::FilesystemError {
-            message: message.into(),
-            source,
-            path,
-        }
+        Self::FilesystemError { message: message.into(), source, path }
     }
 
     pub fn not_found<S: Into<String>>(path: S) -> Self {
-        Self::NotFound {
-            path: path.into(),
-        }
+        Self::NotFound { path: path.into() }
     }
 
     pub fn permission_denied<S: Into<String>>(path: S) -> Self {
-        Self::PermissionDenied {
-            path: path.into(),
-        }
+        Self::PermissionDenied { path: path.into() }
     }
 
     pub fn invalid_input<S: Into<String>>(message: S) -> Self {
-        Self::InvalidInput {
-            message: message.into(),
-        }
+        Self::InvalidInput { message: message.into() }
     }
 
     pub fn validation_error<S: Into<String>, F: Into<String>>(message: S, field: Option<F>) -> Self {
-        Self::ValidationError {
-            message: message.into(),
-            field: field.map(|f| f.into()),
-        }
+        Self::ValidationError { message: message.into(), field: field.map(|f| f.into()) }
     }
 
     pub fn authentication_error<S: Into<String>>(message: S) -> Self {
-        Self::AuthenticationError {
-            message: message.into(),
-        }
+        Self::AuthenticationError { message: message.into() }
     }
 
     pub fn authorization_error<S: Into<String>>(message: S) -> Self {
-        Self::AuthorizationError {
-            message: message.into(),
-        }
+        Self::AuthorizationError { message: message.into() }
     }
 
     pub fn database_error<S: Into<String>>(message: S, source: Option<anyhow::Error>) -> Self {
-        Self::DatabaseError {
-            message: message.into(),
-            source,
-        }
+        Self::DatabaseError { message: message.into(), source }
     }
 }
 

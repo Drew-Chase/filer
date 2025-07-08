@@ -1,12 +1,12 @@
-use std::path::PathBuf;
 use crate::configuration::configuration_data::Configuration;
+use std::path::PathBuf;
 
 /// The `NormalizePath` trait defines a method for converting a type into an
 /// operating-system-compatible path representation (`std::path::PathBuf`).
 ///
 /// This trait can be implemented for different types to streamline their
 /// conversion to a `PathBuf` in a consistent and platform-compatible manner.
-/// 
+///
 /// The implementation will use the `root_path` configuration to map paths.
 /// For example, if `root_path` is set to "/home/user/files" and the path is "/documents/file.txt",
 /// the resulting path will be "/home/user/files/documents/file.txt".
@@ -48,14 +48,14 @@ pub trait NormalizePath {
 
 impl NormalizePath for String {
     /// Converts a string path to an OS-compatible PathBuf, applying the root_path configuration.
-    /// 
+    ///
     /// This implementation:
     /// 1. Gets the root_path from configuration
     /// 2. Handles special cases like the root path ("/")
     /// 3. Normalizes the path according to platform
     /// 4. Combines the root_path with the normalized path
     /// 5. Validates that the resulting path is within the root_path
-    /// 
+    ///
     /// For example, if root_path is "/home/user/files" and the path is "/documents/file.txt",
     /// the resulting path will be "/home/user/files/documents/file.txt".
     fn to_os_path(&self) -> PathBuf {
@@ -74,11 +74,7 @@ impl NormalizePath for String {
             // On Windows, we need to handle paths differently
 
             // Strip leading slash if present
-            let normalized_path = if let Some(stripped) = self.strip_prefix("/") {
-                stripped
-            } else {
-                self
-            };
+            let normalized_path = if let Some(stripped) = self.strip_prefix("/") { stripped } else { self };
 
             // Combine the root path with the normalized path
             let final_path = if root_path == "/" {
@@ -106,10 +102,10 @@ impl NormalizePath for String {
                                 // If not, return the root path
                                 root_path_buf
                             }
-                        },
+                        }
                         Err(_) => root_path_buf, // If we can't canonicalize the root path, return it as is
                     }
-                },
+                }
                 Err(_) => root_path_buf, // If we can't canonicalize the path, return the root path
             }
         }
@@ -117,11 +113,7 @@ impl NormalizePath for String {
         #[cfg(not(target_os = "windows"))]
         {
             // On Unix systems, ensure the path starts with "/"
-            let normalized_path = if !self.starts_with("/") {
-                format!("/{}", self)
-            } else {
-                self.clone()
-            };
+            let normalized_path = if !self.starts_with("/") { format!("/{}", self) } else { self.clone() };
 
             // If the normalized path is just "/", return the root path
             if normalized_path == "/" {
@@ -155,10 +147,10 @@ impl NormalizePath for String {
                                 // If not, return the root path
                                 return root_path_buf;
                             }
-                        },
+                        }
                         Err(_) => return root_path_buf, // If we can't canonicalize the root path, return it as is
                     }
-                },
+                }
                 Err(_) => return root_path_buf, // If we can't canonicalize the path, return the root path
             }
         }

@@ -48,9 +48,7 @@ impl User {
     }
 
     pub async fn list_with_pool(pool: &SqlitePool) -> Result<Vec<Self>> {
-        let users = sqlx::query_as::<_, Self>("select * from users")
-            .fetch_all(pool)
-            .await?;
+        let users = sqlx::query_as::<_, Self>("select * from users").fetch_all(pool).await?;
         Ok(users)
     }
 
@@ -60,10 +58,7 @@ impl User {
     }
 
     pub async fn delete_with_pool(&self, pool: &SqlitePool) -> Result<()> {
-        sqlx::query("delete from users where username = ?")
-            .bind(&self.username)
-            .execute(pool)
-            .await?;
+        sqlx::query("delete from users where username = ?").bind(&self.username).execute(pool).await?;
         Ok(())
     }
 
@@ -88,17 +83,9 @@ impl User {
         self.reset_password_with_pool(new_password, &pool).await
     }
 
-    pub async fn reset_password_with_pool(
-        &self,
-        new_password: impl AsRef<str>,
-        pool: &SqlitePool,
-    ) -> Result<()> {
+    pub async fn reset_password_with_pool(&self, new_password: impl AsRef<str>, pool: &SqlitePool) -> Result<()> {
         let password = bcrypt::hash(new_password.as_ref(), DEFAULT_COST)?.to_string();
-        sqlx::query("update users set password = ? where username = ?")
-            .bind(&password)
-            .bind(&self.username)
-            .execute(pool)
-            .await?;
+        sqlx::query("update users set password = ? where username = ?").bind(&password).bind(&self.username).execute(pool).await?;
         Ok(())
     }
 
@@ -107,35 +94,21 @@ impl User {
         Self::get_by_username_with_connection(username, &pool).await
     }
 
-    pub async fn get_by_username_with_connection(
-        username: impl AsRef<str>,
-        pool: &SqlitePool,
-    ) -> Result<Option<Self>> {
+    pub async fn get_by_username_with_connection(username: impl AsRef<str>, pool: &SqlitePool) -> Result<Option<Self>> {
         let username = username.as_ref().to_string();
-        match sqlx::query_as::<_, Self>("select * from users where username = ? limit 1")
-            .bind(&username)
-            .fetch_one(pool)
-            .await
-        {
+        match sqlx::query_as::<_, Self>("select * from users where username = ? limit 1").bind(&username).fetch_one(pool).await {
             Ok(user) => Ok(Some(user)),
             Err(Error::RowNotFound) => Ok(None),
             Err(e) => Err(anyhow::Error::new(e)),
         }
     }
 
-    pub async fn authenticate(
-        username: impl AsRef<str>,
-        password: impl AsRef<str>,
-    ) -> Result<bool> {
+    pub async fn authenticate(username: impl AsRef<str>, password: impl AsRef<str>) -> Result<bool> {
         let pool = create_pool().await?;
         Self::authenticate_with_pool(username, password, &pool).await
     }
 
-    pub async fn authenticate_with_pool(
-        username: impl AsRef<str>,
-        password: impl AsRef<str>,
-        pool: &SqlitePool,
-    ) -> Result<bool> {
+    pub async fn authenticate_with_pool(username: impl AsRef<str>, password: impl AsRef<str>, pool: &SqlitePool) -> Result<bool> {
         let username = username.as_ref().to_string();
         let password = password.as_ref().to_string();
         let user = Self::get_by_username_with_connection(username, pool).await?;
@@ -166,18 +139,9 @@ impl User {
         Ok(is_token_valid)
     }
 
-    pub async fn exists_with_connection(
-        username: impl AsRef<str>,
-        pool: &SqlitePool,
-    ) -> Result<bool> {
+    pub async fn exists_with_connection(username: impl AsRef<str>, pool: &SqlitePool) -> Result<bool> {
         let username = username.as_ref().to_string();
-        Ok(
-            !sqlx::query("select * from users where username = ? limit 1")
-                .bind(&username)
-                .fetch_all(pool)
-                .await?
-                .is_empty(),
-        )
+        Ok(!sqlx::query("select * from users where username = ? limit 1").bind(&username).fetch_all(pool).await?.is_empty())
     }
 
     pub async fn exists(username: impl AsRef<str>) -> Result<bool> {
@@ -185,11 +149,7 @@ impl User {
         Self::exists_with_connection(username, &pool).await
     }
 
-    pub fn generate_session_token(
-        &self,
-        ip_address: impl AsRef<str>,
-        host: impl AsRef<str>,
-    ) -> Result<String> {
+    pub fn generate_session_token(&self, ip_address: impl AsRef<str>, host: impl AsRef<str>) -> Result<String> {
         let json = json!({
             "id": self.id,
             "username": self.username,
